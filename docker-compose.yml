@@ -1,0 +1,36 @@
+# Requirement Traceability Engine: this service and its own database.
+# Run it on its own with `docker compose up --build`, or as part of the whole
+# platform from AgilePlatform/docker-compose.yml.
+name: traceability
+
+services:
+  trace-db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: trace_db
+      POSTGRES_USER: trace_user
+      POSTGRES_PASSWORD: ${TRACE_DB_PASSWORD:-trace-local}
+    ports:
+      - "127.0.0.1:5443:5432"
+    volumes:
+      - trace-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trace_user -d trace_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  trace-api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://trace_user:${TRACE_DB_PASSWORD:-trace-local}@trace-db:5432/trace_db
+    ports:
+      - "127.0.0.1:8003:8003"
+    depends_on:
+      trace-db:
+        condition: service_healthy
+
+volumes:
+  # Fixed name keeps the data whether this file runs alone or from AgilePlatform/docker-compose.yml.
+  trace-db-data:
+    name: trace-db-data

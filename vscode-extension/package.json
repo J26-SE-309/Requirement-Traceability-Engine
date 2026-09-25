@@ -1,0 +1,44 @@
+{
+  "name": "synapse-traceability",
+  "displayName": "Synapse Traceability",
+  "description": "Links sprint backlog stories to the code and tests that implement them (Synapse platform, Requirement Traceability Engine).",
+  "version": "0.1.0",
+  "publisher": "j26-se-309",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "synapseTraceability.showStatus",
+        "title": "Synapse: Show Traceability Engine Status"
+      }
+    ],
+    "configuration": {
+      "title": "Synapse Traceability",
+      "properties": {
+        "synapseTraceability.engineUrl": {
+          "type": "string",
+          "default": "http://localhost:8003",
+          "description": "URL of the local Requirement Traceability Engine API."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "1.95.0",
+    "typescript": "^5.9.0"
+  }
+}
