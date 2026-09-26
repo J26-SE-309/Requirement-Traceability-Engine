@@ -10,22 +10,85 @@ This service traces requirements across the project lifecycle, linking them to r
 
 Scope, methodology, datasets and models will be documented here as the research progresses.
 
-## Repository Layout (planned)
+## Repository Layout
 
 ```
 Requirement-Traceability-Engine/
-├── backend/     # Service API consumed by Synapse-Web
-└── ml-engine/   # Model training, evaluation and inference
+├── backend/             # FastAPI service the platform calls (port 8003)
+│   ├── app/
+│   │   ├── main.py      # app setup and /health
+│   │   ├── config.py    # settings from environment variables or backend/.env
+│   │   ├── db.py        # this component's own PostgreSQL database
+│   │   ├── schemas.py   # request and response models (the API contract)
+│   │   └── api/v1/      # endpoints
+│   ├── tests/
+│   └── Dockerfile
+├── ml-engine/           # research code: datasets, training, evaluation (package `trace_ml`)
+├── vscode-extension/    # VS Code extension: workspace observer UI and trace graph (TypeScript)
+└── docker-compose.yml   # this service and its database
 ```
 
 ## Getting Started
 
-```bash
-git clone https://github.com/J26-SE-309/Requirement-Traceability-Engine.git
-cd Requirement-Traceability-Engine
+Requires Python 3.12, Docker Desktop and Git. Run these in PowerShell from the repository root after cloning.
+
+1. Create a virtual environment and install the backend and ML engine with their test tools:
+
+   ```powershell
+   py -3.12 -m venv .venv
+   .venv\Scripts\python -m pip install -e "backend[dev]" -e "ml-engine[dev]"
+   ```
+
+2. Start this component's database, then run the API with auto-reload:
+
+   ```powershell
+   docker compose up -d trace-db
+   cd backend
+   ..\.venv\Scripts\uvicorn app.main:app --reload --port 8003
+   ```
+
+   Open http://localhost:8003/docs for the interactive API documentation.
+
+3. Run the tests and the linter (from `backend/`):
+
+   ```powershell
+   ..\.venv\Scripts\python -m pytest
+   ..\.venv\Scripts\ruff check .
+   ```
+
+To run the service and its database together in Docker instead: `docker compose up --build`.
+
+### VS Code extension
+
+```powershell
+cd vscode-extension
+npm install
+npm run compile
 ```
 
-Setup and run instructions will be added once the backend and ML engine are scaffolded.
+Then open the `vscode-extension` folder in VS Code and press F5 to launch a development window with the extension loaded.
+
+### Database
+
+This component has its own PostgreSQL database and account. No other component connects to it.
+
+| Setting | Local value |
+|---|---|
+| Host and port | `localhost:5443` |
+| Database | `trace_db` |
+| User / password | `trace_user` / `trace-local` |
+
+### API contract
+
+Until the models are in place, the endpoints return placeholder results marked `model_version: "stub"`, so the
+gateway and frontend can already be built against the real request and response shapes. The shared JSON
+Schemas live in [`Synapse-Web/contracts/traceability`](https://github.com/J26-SE-309/Synapse-Web/tree/main/contracts/traceability);
+keep them in sync with `backend/app/schemas.py`.
+
+### Data and models
+
+Datasets and trained models are never committed. Keep them in `AgilePlatform/Datasets/traceability/`, next to the
+repositories (see [`ml-engine/README.md`](ml-engine/README.md)).
 
 ## Synapse Platform Services
 
