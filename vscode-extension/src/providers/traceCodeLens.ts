@@ -114,39 +114,53 @@ export class TraceCodeLensProvider implements vscode.CodeLensProvider {
     const codeLenses: vscode.CodeLens[] = [];
 
     for (const fn of cached.functions) {
-      if (token.isCancellationRequested) {
-        return [];
-      }
+  if (token.isCancellationRequested) {
+    return [];
+  }
 
-      // Convert 1-indexed start_line to 0-indexed VS Code Line
-      const targetLine = Math.max(0, fn.start_line - 1);
-      const range = new vscode.Range(targetLine, 0, targetLine, 0);
+  const targetLine = Math.max(0, fn.start_line - 1);
+  const range = new vscode.Range(targetLine, 0, targetLine, 0);
 
-      const simPct = Math.round(fn.similarity * 100);
-      const storyId = fn.matched_story_id || "Unspecified";
+  const simStr = fn.similarity > 0 ? fn.similarity.toFixed(2) : "0.00";
+  const storyId = fn.matched_story_id || "Unlinked";
 
-      let title: string;
-      if (fn.status === "VERIFIED") {
-        title = `🔗 Traced to: ${storyId} (${simPct}%) | Test: ✅ Passed`;
-      } else if (fn.status === "MISSING_TEST") {
-        title = `⚠️ Traced to: ${storyId} | Test: ❌ Missing Test Assertion`;
-      } else if (fn.status === "CANDIDATE") {
-        title = `🔍 Candidate: ${storyId} (${simPct}%) | Needs Review`;
-      } else {
-        // ORPHAN
-        title = `⚠️ Unlinked Function (Best match: ${storyId} at ${simPct}%)`;
-      }
+  let title = "";
+  if (fn.status === "VERIFIED" || fn.status === "MISSING_TEST") {
+    const engineLabel = fn.source === "tag" ? "Tag Directive" : "SBERT Embeddings";
+    title = `🔗 CodeLens: Traced to ${storyId} via ${engineLabel} (Cosine Sim: ${simStr})   [View Rationale]`;
+  } else if (fn.status === "CANDIDATE") {
+    title = `🔍 CodeLens: Candidate ${storyId} (Cosine Sim: ${simStr})   [View Rationale]`;
+  } else {
+    title = `⚠️ CodeLens: Unlinked Function (Best match: ${storyId} at ${simStr})   [Link Story]`;
+  }
 
-      const lens = new vscode.CodeLens(range, {
-        title: title,
-        command: "rte.showStoryDetails",
-        arguments: [fn],
-        tooltip: `${fn.rationale}\nClick to view acceptance criteria and rationale.`,
-      });
+  const lens = new vscode.CodeLens(range, {
+    title: title,
+    command: "rte.showStoryDetails",
+    arguments: [fn],
+    tooltip: fn.rationale || "Click to inspect requirement link rationale",
+  });
 
-      codeLenses.push(lens);
-    }
+  codeLenses.push(lens);
+}
 
     return codeLenses;
   }
+
+
+
+
+
+public getFunctionAtLine(uriKey: string, line0Indexed: number): FunctionTraceStatus | undefined {
+    const cached = this.cache.get(uriKey);
+    if (!cached) {
+      return undefined;
+    }
+    const line1Indexed = line0Indexed + 1;
+    return cached.functions.find(
+      (f) => line1Indexed >= f.start_line && line1Indexed <= f.end_line
+    );
+  }
+
+
 }

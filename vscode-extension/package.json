@@ -21,6 +21,7 @@
     "onCommand:rte.refreshTrace",
     "onCommand:rte.showTraceGraph",
     "onCommand:rte.precommitCheck",
+    "onView:rte.backlogView",
     "onView:rte.graphView"
   ],
   "contributes": {
@@ -55,8 +56,14 @@
       "rte-explorer": [
         {
           "type": "webview",
+          "id": "rte.backlogView",
+          "name": "Sprint Backlog",
+          "visibility": "visible"
+        },
+        {
+          "type": "webview",
           "id": "rte.graphView",
-          "name": "Active Function Trace Graph",
+          "name": "Active Traceability Sub-Graph",
           "visibility": "visible"
         }
       ]
