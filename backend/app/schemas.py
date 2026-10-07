@@ -3,8 +3,10 @@
 They mirror the JSON Schemas in Synapse-Web/contracts/traceability; change both together.
 """
 
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Literal
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -18,6 +20,10 @@ class StoryRef(BaseModel):
 class CoverageRequest(BaseModel):
     project_id: str | None = None
     stories: list[StoryRef] = Field(min_length=1)
+    workspace_path: str | None = Field(default=None, description="Optional root directory of workspace to analyze")
+    target_file: str | None = Field(default=None, description="Optional specific file to analyze")
+    file_content: str | None = Field(default=None, description="Optional in-memory buffer content")
+    delta_only: bool = Field(default=False, description="When true, only analyze modified functions from git delta")
 
 
 class LinkedArtifact(BaseModel):
@@ -42,3 +48,66 @@ class StoryCoverage(BaseModel):
 
 class CoverageResponse(BaseModel):
     items: list[StoryCoverage]
+
+
+class FunctionTraceStatus(BaseModel):
+    """Detailed trace state of a single function block for CodeLens and Graph."""
+
+    name: str
+    qualified_name: str
+    start_line: int
+    end_line: int
+    kind: Literal["code", "test"]
+    status: Literal["VERIFIED", "MISSING_TEST", "CANDIDATE", "ORPHAN"]
+    matched_story_id: str | None = None
+    user_story: str | None = None
+    acceptance_criteria: list[str] = []
+    similarity: float = 0.0
+    source: Literal["tag", "semantic", "none"] = "none"
+    has_test_assertion: bool = False
+    linked_test_symbol: str | None = None
+    rationale: str = ""
+
+
+class FileTraceRequest(BaseModel):
+    """Request to trace all or delta functions inside a specific editor file."""
+
+    file_path: str
+    file_content: str | None = None
+    stories: list[StoryRef] = []
+    delta_only: bool = False
+
+
+class FileTraceResponse(BaseModel):
+    file_path: str
+    functions: list[FunctionTraceStatus]
+    model_version: str
+    latency_ms: float
+    analysed_at: datetime
+
+
+class GraphElementData(BaseModel):
+    id: str
+    label: str
+    type: Literal["story", "function", "test"]
+    status: str | None = None
+    similarity: float | None = None
+    has_assertion: bool | None = None
+
+
+class CytoscapeGraph(BaseModel):
+    elements: list[dict[str, Any]] = []
+
+
+class GraphRequest(BaseModel):
+    file_path: str
+    cursor_line: int = 1
+    file_content: str | None = None
+    stories: list[StoryRef] = []
+
+
+class GraphResponse(BaseModel):
+    graph: CytoscapeGraph
+    active_function: str | None = None
+    story_id: str | None = None
+    analysed_at: datetime

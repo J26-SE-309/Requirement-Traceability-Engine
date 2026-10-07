@@ -1,7 +1,7 @@
 {
   "name": "synapse-traceability",
-  "displayName": "Synapse Traceability",
-  "description": "Links sprint backlog stories to the code and tests that implement them (Synapse platform, Requirement Traceability Engine).",
+  "displayName": "Requirement Traceability Engine",
+  "description": "Edge-computed real-time requirement traceability, inline CodeLens, Cytoscape dependency graph, and pre-commit verification gate.",
   "version": "0.1.0",
   "publisher": "j26-se-309",
   "private": true,
@@ -10,24 +10,84 @@
     "vscode": "^1.95.0"
   },
   "categories": [
-    "Other"
+    "Programming Languages",
+    "Testing",
+    "Linters"
   ],
   "main": "./out/extension.js",
-  "activationEvents": [],
+  "activationEvents": [
+    "onLanguage:python",
+    "onLanguage:typescript",
+    "onCommand:rte.refreshTrace",
+    "onCommand:rte.showTraceGraph",
+    "onCommand:rte.precommitCheck",
+    "onView:rte.graphView"
+  ],
   "contributes": {
     "commands": [
       {
-        "command": "synapseTraceability.showStatus",
-        "title": "Synapse: Show Traceability Engine Status"
+        "command": "rte.refreshTrace",
+        "title": "RTE: Refresh Traceability Analysis"
+      },
+      {
+        "command": "rte.showTraceGraph",
+        "title": "RTE: Show Trace Dependency Graph"
+      },
+      {
+        "command": "rte.precommitCheck",
+        "title": "RTE: Run Pre-Commit Verification Gate"
+      },
+      {
+        "command": "rte.showStoryDetails",
+        "title": "RTE: View Story Acceptance Criteria & Rationale"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "rte-explorer",
+          "title": "Requirement Traceability",
+          "icon": "$(graph)"
+        }
+      ]
+    },
+    "views": {
+      "rte-explorer": [
+        {
+          "type": "webview",
+          "id": "rte.graphView",
+          "name": "Active Function Trace Graph",
+          "visibility": "visible"
+        }
+      ]
+    },
     "configuration": {
-      "title": "Synapse Traceability",
+      "title": "Requirement Traceability Engine",
       "properties": {
-        "synapseTraceability.engineUrl": {
+        "rte.backendUrl": {
           "type": "string",
-          "default": "http://localhost:8003",
-          "description": "URL of the local Requirement Traceability Engine API."
+          "default": "http://127.0.0.1:8000",
+          "description": "URL of the local Requirement Traceability Engine backend API."
+        },
+        "rte.enableCodeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable inline CodeLens decorations directly above function definitions."
+        },
+        "rte.autoDeltaOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Execute sub-350ms AST + Git delta trace analysis on file save."
+        },
+        "rte.confidenceHigh": {
+          "type": "number",
+          "default": 0.8,
+          "description": "Cosine similarity threshold for verified link."
+        },
+        "rte.confidenceMedium": {
+          "type": "number",
+          "default": 0.65,
+          "description": "Cosine similarity threshold for candidate link."
         }
       }
     }
@@ -37,8 +97,10 @@
     "watch": "tsc -watch -p ./"
   },
   "devDependencies": {
+    "@types/cytoscape": "^3.31.0",
     "@types/node": "^22.0.0",
     "@types/vscode": "1.95.0",
+    "cytoscape": "^3.34.3",
     "typescript": "^5.9.0"
   }
 }
