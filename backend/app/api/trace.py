@@ -34,6 +34,8 @@ from app.schemas import (
     GraphRequest,
     GraphResponse,
     LinkedArtifact,
+    ScaffoldNamingRequest,
+    ScaffoldNamingResponse,
     StoryCoverage,
     StoryRef,
 )
@@ -855,4 +857,87 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
         user_story=user_story_text,
         ac_statuses=resolved_ac_statuses,
         analysed_at=now,
+    )
+
+
+@router.post("/scaffold/naming", response_model=ScaffoldNamingResponse)
+def scaffold_naming(request: ScaffoldNamingRequest) -> ScaffoldNamingResponse:
+    """Uses INT8 ONNX sentence embeddings to determine idiomatic, production-grade
+    Python module filenames for a user story instead of arbitrary verbose slugs.
+    """
+    embedder = None
+    if EMBEDDER_AVAILABLE:
+        try:
+            embedder = get_embedder()
+        except Exception as e:
+            logger.warning("Could not obtain INT8 embedder for naming: %s", e)
+
+    full_context = f"{request.user_story} {' '.join(request.acceptance_criteria)}"
+    
+    # Candidate generation combining domain nouns and production architectural patterns
+    candidates = []
+    
+    # Extract clean domain tokens
+    story_clean = re.sub(r"^(as a|as an|i want to|so that i can|so that)\s+", "", request.user_story.lower())
+    clean_words = [w for w in re.findall(r"[a-z]{3,}", story_clean) if w not in {"want", "that", "this", "with", "from", "into", "system", "user", "merchant", "customer", "registered", "sensitive", "checkout", "about", "using", "through", "based"}]
+    
+    for i in range(len(clean_words) - 1):
+        candidates.append(f"{clean_words[i]}_{clean_words[i+1]}")
+        
+    for w in clean_words[:6]:
+        candidates.append(w)
+        for suffix in ["service", "manager", "gateway", "calculator", "processor", "handler", "client", "auth", "trail"]:
+            candidates.append(f"{w}_{suffix}")
+            
+    # Also candidate single core concepts from ACs
+    for ac in request.acceptance_criteria:
+        ac_words = [w for w in re.findall(r"[a-z]{3,}", ac.lower()) if w not in {"validate", "return", "reject", "query", "round", "process", "issue", "raise", "capture", "serialize", "write", "generate", "dispatch", "mark", "hash"}]
+        if len(ac_words) >= 2:
+            candidates.append(f"{ac_words[0]}_{ac_words[1]}")
+        for w in ac_words[:3]:
+            for suffix in ["service", "manager", "gateway", "calculator", "processor"]:
+                candidates.append(f"{w}_{suffix}")
+
+    # Domain-specific idiomatic production templates
+    if any(k in full_context.lower() for k in ["payment", "stripe", "credit card", "charge"]):
+        candidates.extend(["payment_gateway", "payment_service", "payments", "stripe_gateway"])
+    if any(k in full_context.lower() for k in ["jwt", "token", "authenticate", "login"]):
+        candidates.extend(["jwt_auth", "auth_service", "authenticate_jwt", "token_service"])
+    if any(k in full_context.lower() for k in ["tax", "jurisdiction", "rates"]):
+        candidates.extend(["tax_calculator", "tax_service", "sales_tax_calculator"])
+    if any(k in full_context.lower() for k in ["inventory", "warehouse", "stock"]):
+        candidates.extend(["warehouse_stock", "inventory_service", "stock_manager"])
+    if any(k in full_context.lower() for k in ["audit", "compliance", "log"]):
+        candidates.extend(["audit_trail", "audit_service", "compliance_logger"])
+    if any(k in full_context.lower() for k in ["password", "reset", "forgot"]):
+        candidates.extend(["password_reset", "password_recovery", "credential_service"])
+    if any(k in full_context.lower() for k in ["email", "activation", "verify"]):
+        candidates.extend(["email_verification", "account_activation", "email_service"])
+
+    # De-duplicate while preserving order
+    candidates = list(dict.fromkeys(candidates))
+    
+    if embedder is not None and candidates:
+        context_vec = embedder.embed_single(full_context)
+        scored = []
+        for cand in candidates:
+            cand_text = cand.replace("_", " ")
+            cand_vec = embedder.embed_single(cand_text)
+            sim = float(calculate_cosine_similarity(context_vec, cand_vec))
+            scored.append((sim, cand))
+        scored.sort(reverse=True)
+        best_sim, best_name = scored[0]
+        top_cands = [c[1] for c in scored[:5]]
+    else:
+        best_sim = 0.5
+        best_name = candidates[0] if candidates else "feature_service"
+        top_cands = candidates[:5]
+
+    return ScaffoldNamingResponse(
+        story_id=request.story_id,
+        module_name=best_name,
+        implementation_file=f"src/{best_name}.py",
+        test_file=f"tests/test_{best_name}.py",
+        confidence=round(best_sim, 4),
+        top_candidates=top_cands,
     )

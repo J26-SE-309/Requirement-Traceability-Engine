@@ -110,3 +110,18 @@ export interface GraphResponse {
   ac_statuses?: unknown[];
   analysed_at: string;
 }
+
+export interface ScaffoldNamingRequest {
+  story_id: string;
+  user_story: string;
+  acceptance_criteria?: string[];
+}
+
+export interface ScaffoldNamingResponse {
+  story_id: string;
+  module_name: string;
+  implementation_file: string;
+  test_file: string;
+  confidence: number;
+  top_candidates: string[];
+}

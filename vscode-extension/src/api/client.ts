@@ -13,6 +13,8 @@ import {
   FileTraceResponse,
   GraphRequest,
   GraphResponse,
+  ScaffoldNamingRequest,
+  ScaffoldNamingResponse,
 } from "./types";
 
 export class TraceApiClient {
@@ -133,6 +135,19 @@ export class TraceApiClient {
         body: JSON.stringify(request),
       },
       4000
+    );
+  }
+
+  public async resolveScaffoldNaming(
+    request: ScaffoldNamingRequest
+  ): Promise<ScaffoldNamingResponse> {
+    return await this.fetchWithRetry<ScaffoldNamingResponse>(
+      "/api/v1/scaffold/naming",
+      {
+        method: "POST",
+        body: JSON.stringify(request),
+      },
+      3000
     );
   }
 }

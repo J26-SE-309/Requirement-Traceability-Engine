@@ -141,3 +141,18 @@ class GraphResponse(BaseModel):
         description="Acceptance criteria verified for the active viewport story",
     )
     analysed_at: datetime
+
+
+class ScaffoldNamingRequest(BaseModel):
+    story_id: str
+    user_story: str
+    acceptance_criteria: list[str] = Field(default_factory=list)
+
+
+class ScaffoldNamingResponse(BaseModel):
+    story_id: str
+    module_name: str
+    implementation_file: str
+    test_file: str
+    confidence: float
+    top_candidates: list[str] = Field(default_factory=list)
