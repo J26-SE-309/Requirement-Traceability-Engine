@@ -63,9 +63,14 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  public updateViewport(): void {
-    if (vscode.window.activeTextEditor) {
-      this._onCursorChanged(vscode.window.activeTextEditor, true);
+  public updateViewport(targetEditor?: vscode.TextEditor, targetLine?: number): void {
+    const editor = targetEditor || vscode.window.activeTextEditor;
+    if (editor) {
+      if (targetLine !== undefined) {
+        void this._fetchAndRenderGraph(editor.document, targetLine);
+      } else {
+        this._onCursorChanged(editor, true);
+      }
     }
   }
 
@@ -96,10 +101,11 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
     }, 150);
   }
 
-  private async _fetchAndRenderGraph(document: vscode.TextDocument, cursorLine: number): Promise<void> {
+  public async _fetchAndRenderGraph(document: vscode.TextDocument, cursorLine: number): Promise<void> {
     if (!this._view) {
       return;
     }
+
 
     try {
       const client = TraceApiClient.getInstance();
@@ -388,7 +394,12 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
     window.addEventListener('message', event => {
       const message = event.data;
       if (message.type === 'UPDATE_GRAPH') {
-        renderSubGraph(message.data, message.fileName);
+        try {
+          renderSubGraph(message.data, message.fileName);
+        } catch (err) {
+          console.error('[RTE Webview] renderSubGraph exception:', err);
+          showError('Render error: ' + (err.message || err));
+        }
       } else if (message.type === 'GRAPH_ERROR') {
         showError(message.message);
       }
@@ -414,7 +425,7 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       emptyState.style.display = 'none';
       content.style.display = 'block';
 
-      const elements = (data.graph && data.graph.elements) ? data.graph.elements : [];
+      const elements = (data.graph && Array.isArray(data.graph.elements)) ? data.graph.elements : [];
 
       // Extract node states from elements payload
       const storyNode = elements.find(el => el.data && el.data.type === 'story');
@@ -434,7 +445,7 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
         if (data.user_story) {
           storyDesc = ': ' + data.user_story;
         } else if (storyNode && storyNode.data && storyNode.data.label) {
-          const lines = storyNode.data.label.split('\n');
+          const lines = String(storyNode.data.label).split(/\r?\n/);
           if (lines.length > 1) {
             storyDesc = ': ' + lines.slice(1).join(' ').trim();
           }
@@ -465,15 +476,20 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       if (hasAssertion) {
         let testLabel = 'Unit Test Assertion Verified';
         if (testNode && testNode.data && testNode.data.label) {
-          const parts = testNode.data.label.split('\\n');
-          testLabel = parts[0].replace('Test: ', '');
+          const parts = String(testNode.data.label).split(/\r?\n/);
+          testLabel = parts[0].replace('Test: ', '').trim();
         }
         verifTitle.textContent = testLabel;
         verifCard.className = 'node-card card-verification passed';
         connLine2.className = 'connector-line';
         connArrow2.className = 'connector-arrow';
       } else {
-        verifTitle.textContent = 'test_unlinked (Missing Assertion)';
+        let testLabel = 'Unit Test (Missing Assertion)';
+        if (testNode && testNode.data && testNode.data.label) {
+          const parts = String(testNode.data.label).split(/\r?\n/);
+          testLabel = parts[0].trim();
+        }
+        verifTitle.textContent = testLabel;
         verifCard.className = 'node-card card-verification missing';
         connLine2.className = 'connector-line untested';
         connArrow2.className = 'connector-arrow untested';
