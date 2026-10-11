@@ -1,12 +1,13 @@
 """Request and response models: the API contract of this service.
 
-They mirror the JSON Schemas in Synapse-Web/contracts/traceability; change both together.
+They mirror the JSON Schemas in Synapse-Web/contracts/traceability;
+extended with behavioral call-graph links and deterministic Acceptance Criteria evaluations.
 """
 
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -14,7 +15,19 @@ from pydantic import BaseModel, Field
 class StoryRef(BaseModel):
     story_id: str
     user_story: str
-    acceptance_criteria: list[str] = []
+    acceptance_criteria: list[str] = Field(default_factory=list)
+
+
+class ACStatus(BaseModel):
+    """Deterministic verification state of a single Acceptance Criterion."""
+
+    criterion: str
+    satisfied: bool = False
+    similarity: float = Field(default=0.0, ge=-1.0, le=1.0)
+    evidence_symbol: str | None = Field(
+        default=None,
+        description="Function or test symbol providing concrete implementation/assertion",
+    )
 
 
 class CoverageRequest(BaseModel):
@@ -31,17 +44,21 @@ class LinkedArtifact(BaseModel):
     symbol: str | None = Field(default=None, description="Function, class or test name inside the file")
     kind: Literal["code", "test"]
     source: Literal["tag", "semantic"] = Field(description="Explicit '# Trace:' tag or embedding similarity")
-    similarity: float = Field(ge=-1, le=1)
+    similarity: float = Field(ge=-1.0, le=1.0)
     rationale: str
 
 
 class StoryCoverage(BaseModel):
     story_id: str
-    coverage_pct: float = Field(ge=0, le=1)
-    linked_artifacts: list[LinkedArtifact] = []
+    coverage_pct: float = Field(ge=0.0, le=1.0)
+    linked_artifacts: list[LinkedArtifact] = Field(default_factory=list)
     unlinked_artifact_count: int = Field(ge=0)
     has_linked_tests: bool
-    trace_gaps: list[str] = []
+    trace_gaps: list[str] = Field(default_factory=list)
+    ac_statuses: list[ACStatus] = Field(
+        default_factory=list,
+        description="Detailed verification status for each acceptance criterion",
+    )
     model_version: str
     analysed_at: datetime
 
@@ -61,11 +78,19 @@ class FunctionTraceStatus(BaseModel):
     status: Literal["VERIFIED", "MISSING_TEST", "CANDIDATE", "ORPHAN"]
     matched_story_id: str | None = None
     user_story: str | None = None
-    acceptance_criteria: list[str] = []
+    acceptance_criteria: list[str] = Field(default_factory=list)
+    ac_statuses: list[ACStatus] = Field(
+        default_factory=list,
+        description="Per-criterion semantic verification status",
+    )
     similarity: float = 0.0
     source: Literal["tag", "semantic", "none"] = "none"
     has_test_assertion: bool = False
     linked_test_symbol: str | None = None
+    called_symbols: list[str] = Field(
+        default_factory=list,
+        description="Invocations extracted from AST body for call-graph validation",
+    )
     rationale: str = ""
 
 
@@ -74,7 +99,7 @@ class FileTraceRequest(BaseModel):
 
     file_path: str
     file_content: str | None = None
-    stories: list[StoryRef] = []
+    stories: list[StoryRef] = Field(default_factory=list)
     delta_only: bool = False
 
 
@@ -96,18 +121,23 @@ class GraphElementData(BaseModel):
 
 
 class CytoscapeGraph(BaseModel):
-    elements: list[dict[str, Any]] = []
+    elements: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class GraphRequest(BaseModel):
     file_path: str
     cursor_line: int = 1
     file_content: str | None = None
-    stories: list[StoryRef] = []
+    stories: list[StoryRef] = Field(default_factory=list)
 
 
 class GraphResponse(BaseModel):
     graph: CytoscapeGraph
     active_function: str | None = None
     story_id: str | None = None
+    user_story: str | None = None
+    ac_statuses: list[ACStatus] = Field(
+        default_factory=list,
+        description="Acceptance criteria verified for the active viewport story",
+    )
     analysed_at: datetime

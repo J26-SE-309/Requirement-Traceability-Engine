@@ -1,8 +1,8 @@
 """Python AST Parser for Requirement Traceability Engine.
 
 Extracts functions, async functions, methods, signatures, docstrings,
-explicit '# Trace: <STORY-ID>' and '# @trace <STORY-ID>' directives,
-and classifies symbols into production code vs. test fixtures with assertions.
+call-graph invocations, explicit '# Trace: <STORY-ID>' comment directives,
+and classifies symbols into production code vs. test fixtures with verifiable assertions.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 import re
 import tokenize
-from typing import Literal, Sequence
+from typing import Literal
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,22 @@ TEST_FILE_PATTERN = re.compile(
 )
 
 
+def split_identifier(name: str) -> str:
+    """Split snake_case and camelCase identifiers into space-delimited natural words.
+
+    Examples:
+        'verify_jwt_token' -> 'verify jwt token'
+        'calculateStateTax' -> 'calculate state tax'
+        'HTTPResponseHandler' -> 'http response handler'
+    """
+    # 1. Handle consecutive uppercase abbreviations: 'HTTPResponse' -> 'HTTP Response'
+    s1 = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", name)
+    # 2. Handle standard camelCase transitions: 'stateTax' -> 'state Tax'
+    s2 = re.sub(r"([a-z\d])([A-Z])", r"\1 \2", s1)
+    # 3. Replace underscores with spaces and normalize casing
+    return s2.replace("_", " ").strip().lower()
+
+
 @dataclass
 class ParsedSymbol:
     """Represents an extracted Python function, method, or test block."""
@@ -51,6 +67,7 @@ class ParsedSymbol:
     semantic_text: str = ""
     has_assertions: bool = False
     file_path: str = ""
+    called_symbols: list[str] = field(default_factory=list)
 
     def __init__(
         self,
@@ -66,6 +83,7 @@ class ParsedSymbol:
         semantic_text: str = "",
         has_assertions: bool = False,
         file_path: str = "",
+        called_symbols: list[str] | None = None,
         start_line: int | None = None,
         end_line: int | None = None,
     ) -> None:
@@ -81,6 +99,7 @@ class ParsedSymbol:
         self.semantic_text = semantic_text
         self.has_assertions = has_assertions
         self.file_path = file_path
+        self.called_symbols = called_symbols if called_symbols is not None else []
 
     @property
     def start_line(self) -> int:
@@ -150,6 +169,22 @@ def _has_test_assertions(node: ast.AST) -> bool:
     return False
 
 
+def _extract_called_symbols(node: ast.AST) -> list[str]:
+    """Traverse AST to extract all function and method invocations called inside body."""
+    calls: list[str] = []
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Call):
+            func = sub.func
+            if isinstance(func, ast.Name):
+                calls.append(func.id)
+            elif isinstance(func, ast.Attribute):
+                # Captures method calls: obj.verify_jwt_token() -> 'verify_jwt_token'
+                calls.append(func.attr)
+
+    seen: set[str] = set()
+    return [c for c in calls if not (c in seen or seen.add(c))]
+
+
 def _build_signature(node: ast.FunctionDef | ast.AsyncFunctionDef, source_lines: list[str]) -> str:
     """Extract or rebuild the function signature string."""
     try:
@@ -169,21 +204,47 @@ def _build_semantic_text(
     docstring: str | None,
     signature: str,
     code_snippet: str,
+    args: list[str],
+    called_symbols: list[str],
 ) -> str:
-    """Formulate high-quality descriptive text for dense embedding."""
-    readable_name = name.replace("_", " ")
+    """Formulate high-density semantic text for INT8 Sentence-BERT embedding.
 
-    parts: list[str] = [f"Function {readable_name}"]
+    Normalizes identifiers and focuses on domain vocabulary to maximize cosine similarity.
+    """
+    natural_name = split_identifier(name)
+    parts: list[str] = [f"Function {natural_name}"]
+
+    # Include parameter terms
+    clean_params = [
+        split_identifier(arg)
+        for arg in args
+        if arg not in ("self", "cls", "args", "kwargs")
+    ]
+    if clean_params:
+        parts.append(f"Parameters: {', '.join(clean_params)}")
+
     if docstring:
-        parts.append(f"Description: {docstring.strip()}")
+        clean_doc = " ".join(docstring.split())
+        parts.append(f"Description: {clean_doc}")
+
+    # Include called dependencies (adds contextual domain terms)
+    domain_calls = [
+        split_identifier(c)
+        for c in called_symbols[:6]
+        if not c.startswith("_") and c not in ("print", "len", "range", "isinstance", "int", "str")
+    ]
+    if domain_calls:
+        parts.append(f"Invocations: {', '.join(domain_calls)}")
+
     parts.append(f"Signature: {signature}")
 
+    # Extract non-comment executable implementation lines
     snippet_lines = [
         line.strip()
         for line in code_snippet.splitlines()
         if line.strip() and not line.strip().startswith("#")
     ]
-    summary_code = " ".join(snippet_lines[:8])
+    summary_code = " ".join(snippet_lines[:5])
     if summary_code:
         parts.append(f"Implementation: {summary_code}")
 
@@ -271,14 +332,14 @@ def parse_python_symbols(
             explicit_traces: list[str] = []
 
             # 1. Comments immediately above the function header (up to 3 lines above start_line)
-            for l in range(max(1, start_line - 3), start_line):
-                for comm in comment_map.get(l, []):
+            for line_idx in range(max(1, start_line - 3), start_line):
+                for comm in comment_map.get(line_idx, []):
                     traces = _extract_story_ids_from_comment(comm)
                     explicit_traces.extend(traces)
 
             # 2. Comments within the function body
-            for l in range(start_line, end_line + 1):
-                for comm in comment_map.get(l, []):
+            for line_idx in range(start_line, end_line + 1):
+                for comm in comment_map.get(line_idx, []):
                     traces = _extract_story_ids_from_comment(comm)
                     explicit_traces.extend(traces)
 
@@ -298,7 +359,19 @@ def parse_python_symbols(
             )
             kind: Literal["code", "test"] = "test" if is_test_symbol else "code"
             has_assertions = _has_test_assertions(node)
-            semantic_text = _build_semantic_text(node.name, docstring, sig, code_snippet)
+
+            # Extract called functions and method names for call-graph linking
+            called_symbols = _extract_called_symbols(node)
+
+            args = [a.arg for a in node.args.args]
+            semantic_text = _build_semantic_text(
+                name=node.name,
+                docstring=docstring,
+                signature=sig,
+                code_snippet=code_snippet,
+                args=args,
+                called_symbols=called_symbols,
+            )
 
             parsed_symbols.append(
                 ParsedSymbol(
@@ -314,6 +387,7 @@ def parse_python_symbols(
                     semantic_text=semantic_text,
                     has_assertions=has_assertions,
                     file_path=file_str,
+                    called_symbols=called_symbols,
                 )
             )
 
