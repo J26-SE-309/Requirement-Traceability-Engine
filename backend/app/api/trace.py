@@ -772,7 +772,7 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
     # Node 1: User Story
     story_label = f"Story: {story_id}"
     if user_story_text:
-        story_label += f"\n{user_story_text[:40]}..."
+        story_label += f"\n{user_story_text}"
     elements.append({
         "data": {
             "id": f"story_{story_id}",

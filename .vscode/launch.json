@@ -1,0 +1,38 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    
+
+
+
+    
+    {
+      "name": "Run Extension (VS Code)",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/vscode-extension"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/vscode-extension/out/**/*.js"
+      ],
+      "preLaunchTask": "compile-extension"
+    },
+    {
+      "name": "Run Backend (FastAPI)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/run_backend.py",
+      "console": "integratedTerminal"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Stack: Backend + Extension",
+      "configurations": [
+        "Run Backend (FastAPI)",
+        "Run Extension (VS Code)"
+      ]
+    }
+  ]
+}

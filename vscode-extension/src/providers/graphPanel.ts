@@ -405,10 +405,12 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       const reqTitle = document.getElementById('req-title');
       if (storyId && storyId !== 'UNLINKED') {
         let storyDesc = '';
-        if (storyNode && storyNode.data && storyNode.data.label) {
-          const lines = storyNode.data.label.split('\\n');
+        if (data.user_story) {
+          storyDesc = ': ' + data.user_story;
+        } else if (storyNode && storyNode.data && storyNode.data.label) {
+          const lines = storyNode.data.label.split('\n');
           if (lines.length > 1) {
-            storyDesc = ': ' + lines[1].replace('...', '');
+            storyDesc = ': ' + lines.slice(1).join(' ').trim();
           }
         }
         reqTitle.textContent = storyId + storyDesc;

@@ -28,12 +28,10 @@ def main():
         print(f"    {i:2d}. [{s.story_id}] {s.user_story[:68]}...")
 
     # 2. Locate target code file
-    target_file = Path(r"c:\Users\DINUWA\Desktop\Reserach resources\TEsting\test_trace.py")
+    target_file = repo_root / "demo_codelens.py"
     if not target_file.exists():
-        target_file = repo_root / "benchmarks" / "sample_code.py"
-        print(f"\n[!] Notice: External path not found, using fallback: {target_file}")
-    else:
-        print(f"\n[*] Target Source Code: {target_file}")
+        target_file = Path(r"c:\Users\DINUWA\Desktop\Reserach resources\TEsting\test_trace.py")
+    print(f"\n[*] Target Source Code: {target_file}")
 
     if target_file.exists():
         content = target_file.read_text(encoding="utf-8")
