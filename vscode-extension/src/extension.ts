@@ -60,8 +60,13 @@ export function activate(context: vscode.ExtensionContext): void {
   statusBarGate.show();
   context.subscriptions.push(statusBarGate);
 
-  // Asynchronously verify local backend health
+  // Asynchronously verify local backend health and maintain self-healing heartbeat
   void checkBackendStatus();
+  const healthInterval = setInterval(() => {
+    void checkBackendStatus();
+  }, 5000);
+  context.subscriptions.push({ dispose: () => clearInterval(healthInterval) });
+
 
   // =========================================================================
   // 2. Language Providers (Python & TypeScript)
@@ -151,6 +156,7 @@ export function activate(context: vscode.ExtensionContext): void {
         const line = Math.max(0, fn.start_line - 1);
         activeEditor.selection = new vscode.Selection(line, 0, line, 0);
         activeEditor.revealRange(new vscode.Range(line, 0, line, 0));
+        void vscode.commands.executeCommand("rte.graphView.focus");
         graphProvider.updateViewport(activeEditor, fn.start_line);
       }
 

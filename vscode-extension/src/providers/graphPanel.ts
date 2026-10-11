@@ -16,8 +16,7 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
 
   private _view?: vscode.WebviewView;
   private _debounceTimer?: NodeJS.Timeout;
-  private _lastGraphResponse?: GraphResponse;
-  private _lastFileName?: string;
+  private _lastSignature?: string;
 
   constructor(private readonly _extensionUri: vscode.Uri) {}
 
@@ -35,34 +34,36 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
-    webviewView.webview.onDidReceiveMessage((message) => {
-      if (message.type === "READY") {
-        if (this._lastGraphResponse) {
-          webviewView.webview.postMessage({
-            type: "UPDATE_GRAPH",
-            data: this._lastGraphResponse,
-            fileName: this._lastFileName,
-          });
-        }
-        this.updateViewport();
+    // Track active editor cursor position changes
+    vscode.window.onDidChangeTextEditorSelection((e) => {
+      this._onCursorChanged(e.textEditor);
+    });
+
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
+      if (editor) {
+        this._onCursorChanged(editor);
       }
     });
 
-    webviewView.onDidChangeVisibility(() => {
-      this.updateViewport();
-    });
-
-    // Track active editor and cursor line changes (matching backlogPanel reliability)
-    vscode.window.onDidChangeTextEditorSelection(() => this._debounceUpdate());
-    vscode.window.onDidChangeActiveTextEditor(() => this._debounceUpdate());
-
     // Initial render for active editor
-    this.updateViewport();
+    if (vscode.window.activeTextEditor) {
+      this._onCursorChanged(vscode.window.activeTextEditor);
+    }
   }
 
   public updateViewport(targetEditor?: vscode.TextEditor, targetLine?: number): void {
     const editor = targetEditor || vscode.window.activeTextEditor;
-    if (!editor || !this._view) {
+    if (editor) {
+      if (targetLine !== undefined) {
+        void this._fetchAndRenderGraph(editor.document, targetLine);
+      } else {
+        this._onCursorChanged(editor, true);
+      }
+    }
+  }
+
+  private _onCursorChanged(editor: vscode.TextEditor, force: boolean = false): void {
+    if (!this._view || !this._view.visible) {
       return;
     }
 
@@ -71,16 +72,20 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    const line = targetLine !== undefined ? targetLine : editor.selection.active.line + 1;
-    void this._fetchAndRenderGraph(doc, line);
-  }
+    const cursorLine = editor.selection.active.line + 1; // 1-indexed for backend
+    const signature = `${doc.uri.toString()}#L${cursorLine}@v${doc.version}`;
 
-  private _debounceUpdate(): void {
+    if (!force && this._lastSignature === signature) {
+      return;
+    }
+    this._lastSignature = signature;
+
     if (this._debounceTimer) {
       clearTimeout(this._debounceTimer);
     }
-    this._debounceTimer = setTimeout(() => {
-      this.updateViewport();
+
+    this._debounceTimer = setTimeout(async () => {
+      await this._fetchAndRenderGraph(doc, cursorLine);
     }, 120);
   }
 
@@ -100,9 +105,8 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
         stories: stories,
       });
 
+      // Pass active filename along with backend graph payload
       const fileName = document.uri.fsPath.split(/[\/\\]/).pop() || "document.py";
-      this._lastGraphResponse = response;
-      this._lastFileName = fileName;
 
       this._view.webview.postMessage({
         type: "UPDATE_GRAPH",
@@ -117,7 +121,6 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       });
     }
   }
-
 
   private _getHtmlForWebview(_webview: vscode.Webview): string {
     return `<!DOCTYPE html>
@@ -306,7 +309,7 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
 
     /* Standby / Empty State */
     #empty-state {
-      display: block;
+      display: none;
       padding: 30px 16px;
       text-align: center;
       font-size: 12px;
@@ -314,11 +317,6 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       border: 1px dashed var(--border-default);
       border-radius: 6px;
       margin-top: 10px;
-      line-height: 1.6;
-    }
-
-    #graph-content {
-      display: none;
     }
   </style>
 </head>
@@ -330,14 +328,14 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
     </div>
 
     <div id="empty-state">
-      Select or move cursor inside a Python function in your editor to inspect its traceability chain.
+      Move editor cursor inside a function to inspect active traceability.
     </div>
 
     <div id="graph-content">
       <!-- Node 1: Requirement -->
       <div class="node-card card-requirement">
         <div class="card-label">Requirement</div>
-        <div id="req-title" class="card-value">—</div>
+        <div id="req-title" class="card-value">US-102: Tutor Booking</div>
       </div>
 
       <!-- Connector 1 -->
@@ -349,7 +347,7 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       <!-- Node 2: Implementation -->
       <div id="impl-card" class="node-card card-implementation">
         <div class="card-label">Implementation</div>
-        <div id="impl-title" class="card-value">—</div>
+        <div id="impl-title" class="card-value">TutorBookingController.py</div>
       </div>
 
       <!-- Connector 2 -->
@@ -361,40 +359,26 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       <!-- Node 3: Verification -->
       <div id="verif-card" class="node-card card-verification">
         <div class="card-label">Verification</div>
-        <div id="verif-title" class="card-value">—</div>
+        <div id="verif-title" class="card-value">test_booking_flow.py</div>
       </div>
 
       <!-- Link Rationale Box -->
       <div class="rationale-container">
         ℹ <strong class="rationale-title">Link Rationale:</strong>
-        <span id="rationale-text">—</span>
+        <span id="rationale-text">High semantic similarity (0.88) found between User Story ACs and function docstrings.</span>
       </div>
     </div>
   </div>
 
   <script>
-    const vscode = acquireVsCodeApi();
-
     window.addEventListener('message', event => {
       const message = event.data;
       if (message.type === 'UPDATE_GRAPH') {
-        try {
-          renderSubGraph(message.data, message.fileName);
-        } catch (err) {
-          console.error('[RTE Webview] renderSubGraph exception:', err);
-          showError('Render error: ' + (err.message || err));
-        }
+        renderSubGraph(message.data, message.fileName);
       } else if (message.type === 'GRAPH_ERROR') {
         showError(message.message);
       }
     });
-
-    // Notify extension host that webview DOM is mounted and ready for data
-    try {
-      vscode.postMessage({ type: 'READY' });
-    } catch (e) {
-      console.warn('[RTE Webview] ready postMessage failed:', e);
-    }
 
     function renderSubGraph(data, fileName) {
       const emptyState = document.getElementById('empty-state');
@@ -409,7 +393,7 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       emptyState.style.display = 'none';
       content.style.display = 'block';
 
-      const elements = (data.graph && Array.isArray(data.graph.elements)) ? data.graph.elements : [];
+      const elements = (data.graph && data.graph.elements) ? data.graph.elements : [];
 
       // Extract node states from elements payload
       const storyNode = elements.find(el => el.data && el.data.type === 'story');
@@ -429,9 +413,9 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
         if (data.user_story) {
           storyDesc = ': ' + data.user_story;
         } else if (storyNode && storyNode.data && storyNode.data.label) {
-          const lines = String(storyNode.data.label).split(/\r?\n/);
+          const lines = String(storyNode.data.label).split(/\\r?\\n/);
           if (lines.length > 1) {
-            storyDesc = ': ' + lines.slice(1).join(' ').trim();
+            storyDesc = ': ' + lines[1].replace('...', '');
           }
         }
         reqTitle.textContent = storyId + storyDesc;
@@ -460,8 +444,8 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       if (hasAssertion) {
         let testLabel = 'Unit Test Assertion Verified';
         if (testNode && testNode.data && testNode.data.label) {
-          const parts = String(testNode.data.label).split(/\r?\n/);
-          testLabel = parts[0].replace('Test: ', '').trim();
+          const parts = String(testNode.data.label).split(/\\r?\\n/);
+          testLabel = parts[0].replace('Test: ', '');
         }
         verifTitle.textContent = testLabel;
         verifCard.className = 'node-card card-verification passed';
@@ -470,7 +454,7 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       } else {
         let testLabel = 'Unit Test (Missing Assertion)';
         if (testNode && testNode.data && testNode.data.label) {
-          const parts = String(testNode.data.label).split(/\r?\n/);
+          const parts = String(testNode.data.label).split(/\\r?\\n/);
           testLabel = parts[0].trim();
         }
         verifTitle.textContent = testLabel;

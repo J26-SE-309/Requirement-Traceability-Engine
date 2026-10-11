@@ -106,5 +106,7 @@ export interface GraphResponse {
   graph: CytoscapeGraph;
   active_function?: string | null;
   story_id?: string | null;
+  user_story?: string | null;
+  ac_statuses?: unknown[];
   analysed_at: string;
 }

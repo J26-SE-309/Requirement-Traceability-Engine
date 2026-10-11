@@ -132,7 +132,7 @@ export class TraceApiClient {
         method: "POST",
         body: JSON.stringify(request),
       },
-      2000
+      4000
     );
   }
 }

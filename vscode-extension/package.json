@@ -100,8 +100,10 @@
     }
   },
   "scripts": {
+    "clean": "node -e \"require('fs').rmSync('out', { recursive: true, force: true })\"",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "build": "pnpm run clean && npm run compile"
   },
   "devDependencies": {
     "@types/cytoscape": "^3.31.0",
