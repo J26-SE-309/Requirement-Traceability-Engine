@@ -34,6 +34,18 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
+    webviewView.webview.onDidReceiveMessage((message) => {
+      if (message.type === "READY") {
+        this.updateViewport();
+      }
+    });
+
+    webviewView.onDidChangeVisibility(() => {
+      if (webviewView.visible) {
+        this.updateViewport();
+      }
+    });
+
     // Track active editor cursor position changes
     vscode.window.onDidChangeTextEditorSelection((e) => {
       this._onCursorChanged(e.textEditor);
@@ -304,7 +316,7 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
 
     /* Standby / Empty State */
     #empty-state {
-      display: none;
+      display: block;
       padding: 30px 16px;
       text-align: center;
       font-size: 12px;
@@ -312,6 +324,11 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       border: 1px dashed var(--border-default);
       border-radius: 6px;
       margin-top: 10px;
+      line-height: 1.6;
+    }
+
+    #graph-content {
+      display: none;
     }
   </style>
 </head>
@@ -323,14 +340,14 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
     </div>
 
     <div id="empty-state">
-      Move editor cursor inside a function to inspect active traceability.
+      Select or move cursor inside a Python function in your editor to inspect its traceability chain.
     </div>
 
     <div id="graph-content">
       <!-- Node 1: Requirement -->
       <div class="node-card card-requirement">
         <div class="card-label">Requirement</div>
-        <div id="req-title" class="card-value">US-102: Tutor Booking</div>
+        <div id="req-title" class="card-value">—</div>
       </div>
 
       <!-- Connector 1 -->
@@ -342,7 +359,7 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       <!-- Node 2: Implementation -->
       <div id="impl-card" class="node-card card-implementation">
         <div class="card-label">Implementation</div>
-        <div id="impl-title" class="card-value">TutorBookingController.py</div>
+        <div id="impl-title" class="card-value">—</div>
       </div>
 
       <!-- Connector 2 -->
@@ -354,18 +371,20 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       <!-- Node 3: Verification -->
       <div id="verif-card" class="node-card card-verification">
         <div class="card-label">Verification</div>
-        <div id="verif-title" class="card-value">test_booking_flow.py</div>
+        <div id="verif-title" class="card-value">—</div>
       </div>
 
       <!-- Link Rationale Box -->
       <div class="rationale-container">
         ℹ <strong class="rationale-title">Link Rationale:</strong>
-        <span id="rationale-text">High semantic similarity (0.88) found between User Story ACs and function docstrings.</span>
+        <span id="rationale-text">—</span>
       </div>
     </div>
   </div>
 
   <script>
+    const vscode = acquireVsCodeApi();
+
     window.addEventListener('message', event => {
       const message = event.data;
       if (message.type === 'UPDATE_GRAPH') {
@@ -374,6 +393,13 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
         showError(message.message);
       }
     });
+
+    // Notify extension host that webview DOM is mounted and ready for data
+    try {
+      vscode.postMessage({ type: 'READY' });
+    } catch (e) {
+      console.warn('[RTE Webview] ready postMessage failed:', e);
+    }
 
     function renderSubGraph(data, fileName) {
       const emptyState = document.getElementById('empty-state');

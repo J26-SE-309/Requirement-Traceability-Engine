@@ -17,7 +17,7 @@ import {
 
 export class TraceApiClient {
   private static instance: TraceApiClient | null = null;
-  private readonly defaultTimeoutMs: number = 350;
+  private readonly defaultTimeoutMs: number = 2000;
 
   private constructor() {}
 
@@ -109,18 +109,19 @@ export class TraceApiClient {
         method: "POST",
         body: JSON.stringify(request),
       },
-      800 // Full workspace coverage budget allows slightly higher timeout
+      3000
     );
   }
 
   public async traceFile(request: FileTraceRequest): Promise<FileTraceResponse> {
+    const timeout = request.delta_only ? 1000 : 3000;
     return await this.fetchWithRetry<FileTraceResponse>(
       "/api/v1/trace/file",
       {
         method: "POST",
         body: JSON.stringify(request),
       },
-      this.defaultTimeoutMs
+      timeout
     );
   }
 
@@ -131,7 +132,7 @@ export class TraceApiClient {
         method: "POST",
         body: JSON.stringify(request),
       },
-      this.defaultTimeoutMs
+      2000
     );
   }
 }

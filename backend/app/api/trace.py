@@ -667,7 +667,7 @@ def trace_file(request: FileTraceRequest) -> FileTraceResponse:
     if request.delta_only:
         functions, _ = get_modified_functions(p, source_code=request.file_content)
     else:
-        if request.file_content:
+        if request.file_content is not None:
             functions = parse_python_source(request.file_content, file_path=str(p))
         else:
             functions = parse_python_file(p)
@@ -718,7 +718,7 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
     now = datetime.now(timezone.utc)
     p = Path(request.file_path)
 
-    if request.file_content:
+    if request.file_content is not None:
         functions = parse_python_source(request.file_content, file_path=str(p))
     else:
         functions = parse_python_file(p)
@@ -729,8 +729,15 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
             active_func = f
             break
 
-    if not active_func:
-        active_func = functions[0] if functions else None
+    if not active_func and functions:
+        active_func = min(
+            functions,
+            key=lambda f: min(abs(f.line_start - request.cursor_line), abs(f.line_end - request.cursor_line)),
+        )
+
+    fn_names = [f.name for f in functions]
+    active_name = active_func.name if active_func else None
+    print(f"[RTE TRACE GRAPH] file='{p.name}' line={request.cursor_line} funcs={fn_names} active={active_name}", flush=True)
 
     if not active_func:
         return GraphResponse(

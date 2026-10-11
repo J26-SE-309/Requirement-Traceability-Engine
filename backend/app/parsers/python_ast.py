@@ -272,18 +272,6 @@ def parse_python_symbols(
             logger.error("Failed to read %s: %s", path, e)
             return []
 
-    if not source_code.strip():
-        return []
-
-    try:
-        tree = ast.parse(source_code)
-    except SyntaxError as e:
-        logger.warning("SyntaxError parsing %s: %s", file_str or "<source>", e)
-        return []
-    except Exception as e:
-        logger.warning("AST parse failure for %s: %s", file_str or "<source>", e)
-        return []
-
     source_lines = source_code.splitlines()
     comments = _extract_comments(source_code)
 
@@ -392,7 +380,69 @@ def parse_python_symbols(
             )
 
     visitor = FunctionVisitor()
-    visitor.visit(tree)
+    try:
+        tree = ast.parse(source_code)
+        visitor.visit(tree)
+    except SyntaxError as e:
+        logger.warning("SyntaxError parsing %s: %s (initiating resilient symbol recovery)", file_str or "<source>", e)
+        # Resilient block-by-block parsing for in-progress edits
+        top_indices: list[int] = []
+        for idx, line in enumerate(source_lines):
+            if (line.startswith("def ") or line.startswith("async def ") or line.startswith("class ") or line.startswith("@")) and not line.startswith(" "):
+                top_indices.append(idx)
+
+        if not top_indices:
+            for idx, line in enumerate(source_lines):
+                if re.match(r"^\s*(?:async\s+)?def\s+([a-zA-Z0-9_]+)", line):
+                    top_indices.append(idx)
+
+        if top_indices:
+            top_indices.append(len(source_lines))
+            for i in range(len(top_indices) - 1):
+                start_idx = top_indices[i]
+                end_idx = top_indices[i + 1]
+                padded_block = ("\n" * start_idx) + "\n".join(source_lines[start_idx:end_idx])
+                try:
+                    block_tree = ast.parse(padded_block)
+                    visitor.visit(block_tree)
+                except Exception:
+                    # Regex fallback for the specific block containing the syntax error
+                    first_line = source_lines[start_idx].strip()
+                    m = re.match(r"^(?:async\s+)?def\s+([a-zA-Z0-9_]+)\s*\((.*?)\)", first_line)
+                    if m:
+                        fn_name = m.group(1)
+                        block_slice = source_lines[start_idx:end_idx]
+                        snippet = "\n".join(block_slice)
+                        doc = None
+                        for bl in block_slice[1:min(6, len(block_slice))]:
+                            if '"""' in bl or "'''" in bl:
+                                doc = bl.replace('"""', '').replace("'''", '').strip()
+                                break
+                        explicit_traces: list[str] = []
+                        for line_idx in range(max(1, start_idx - 2), start_idx + 1):
+                            for comm in comment_map.get(line_idx + 1, []):
+                                explicit_traces.extend(_extract_story_ids_from_comment(comm))
+                        is_test_sym = fn_name.startswith("test_") or fn_name.endswith("_test") or is_test_file
+                        has_assert = any("assert " in bl for bl in block_slice)
+                        parsed_symbols.append(
+                            ParsedSymbol(
+                                name=fn_name,
+                                line_start=start_idx + 1,
+                                line_end=end_idx,
+                                docstring=doc,
+                                code_snippet=snippet,
+                                kind="test" if is_test_sym else "code",
+                                explicit_traces=explicit_traces,
+                                signature=first_line,
+                                qualified_name=fn_name,
+                                semantic_text=f"Function: {fn_name}. {doc or ''}",
+                                has_assertions=has_assert,
+                                file_path=file_str,
+                                called_symbols=[],
+                            )
+                        )
+    except Exception as e:
+        logger.warning("AST parse failure for %s: %s", file_str or "<source>", e)
 
     parsed_symbols.sort(key=lambda s: s.line_start)
     return parsed_symbols
