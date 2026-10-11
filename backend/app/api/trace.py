@@ -715,8 +715,9 @@ def trace_file(request: FileTraceRequest) -> FileTraceResponse:
 def trace_graph(request: GraphRequest) -> GraphResponse:
     """Generate 3-node linear chain for the active function under cursor:
 
-    [ User Story ] ---> [ Active Function ] ---> [ Unit Test ]
+    [ User Story ] ---> [ Implementation (Node 2) ] ---> [ Verification (Node 3) ]
     """
+    t0 = time.perf_counter()
     now = datetime.now(timezone.utc)
     p = Path(request.file_path)
 
@@ -748,6 +749,7 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
             story_id=None,
             user_story=None,
             ac_statuses=[],
+            latency_ms=round((time.perf_counter() - t0) * 1000, 2),
             analysed_at=now,
         )
 
@@ -765,8 +767,68 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
             pass
 
     test_functions = [f for f in functions if f.kind == "test"]
+    code_functions = [f for f in functions if f.kind == "code"]
+
+    prod_func: ParsedFunction | None = None
+    test_func: ParsedFunction | None = None
+    deduced_prod_name: str | None = None
+
+    if active_func.kind == "test":
+        test_func = active_func
+        # 1. Resolve target production function via called_symbols
+        called_symbols = getattr(test_func, "called_symbols", []) or []
+        for f in code_functions:
+            if f.name in called_symbols:
+                prod_func = f
+                break
+
+        # 2. Resolve via test_<name> or test_<name>_* convention
+        if not prod_func:
+            for f in code_functions:
+                if test_func.name == f"test_{f.name}" or test_func.name.startswith(f"test_{f.name}"):
+                    prod_func = f
+                    break
+
+        # 3. Resolve via shared explicit trace tag
+        if not prod_func and test_func.explicit_traces:
+            for f in code_functions:
+                if any(tag in f.explicit_traces for tag in test_func.explicit_traces):
+                    prod_func = f
+                    break
+
+        # 4. Resolve if only one code function exists in file
+        if not prod_func and len(code_functions) == 1:
+            prod_func = code_functions[0]
+
+        # 5. If no code function in this file, deduce production symbol name from called symbols or test name
+        if not prod_func:
+            for sym in called_symbols:
+                if sym not in {"assert", "print", "len", "range", "pytest", "isinstance", "int", "str", "dict", "list"}:
+                    deduced_prod_name = sym
+                    break
+            if not deduced_prod_name:
+                cleaned = re.sub(r"^test_", "", test_func.name)
+                deduced_prod_name = cleaned or "target_function"
+    else:
+        prod_func = active_func
+        # Find linked test fixture testing this production function
+        for t in test_functions:
+            if is_function_tested_by(t, prod_func):
+                test_func = t
+                break
+        if not test_func and prod_func.explicit_traces:
+            for t in test_functions:
+                if any(tag in t.explicit_traces for tag in prod_func.explicit_traces):
+                    test_func = t
+                    break
+
+    # Determine matched story and trace evaluation
+    matched_story: StoryRef | None = None
+    trace_status: FunctionTraceStatus | None = None
+
+    eval_func = prod_func or active_func
     trace_status, matched_story = evaluate_function_against_stories(
-        active_func,
+        eval_func,
         effective_stories,
         story_embeddings=story_embeddings,
         available_tests=test_functions,
@@ -774,8 +836,32 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
         embedder=embedder,
     )
 
-    story_id = trace_status.matched_story_id or (matched_story.story_id if matched_story else "UNLINKED")
-    user_story_text = trace_status.user_story or (matched_story.user_story if matched_story else None)
+    # If active test function had explicit tag, propagate story
+    if (not matched_story or trace_status.status == "ORPHAN") and test_func and test_func.explicit_traces:
+        for st in effective_stories:
+            if st.story_id in test_func.explicit_traces:
+                matched_story = st
+                trace_status.matched_story_id = st.story_id
+                trace_status.user_story = st.user_story
+                trace_status.acceptance_criteria = st.acceptance_criteria
+                trace_status.similarity = 1.0
+                trace_status.source = "tag"
+                break
+
+    story_id = (matched_story.story_id if matched_story else None) or trace_status.matched_story_id or "UNLINKED"
+    user_story_text = (matched_story.user_story if matched_story else None) or trace_status.user_story
+
+    prod_name = prod_func.name if prod_func else (deduced_prod_name or active_func.name)
+    has_test_assertion = False
+    if test_func:
+        has_test_assertion = getattr(test_func, "has_assertions", False)
+    elif trace_status.has_test_assertion:
+        has_test_assertion = True
+
+    impl_status = "VERIFIED" if (has_test_assertion and story_id != "UNLINKED") else (
+        "ORPHAN" if story_id == "UNLINKED" else "MISSING_TEST"
+    )
+
     elements: list[dict[str, Any]] = []
 
     # Node 1: User Story
@@ -791,50 +877,59 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
         }
     })
 
-    # Node 2: Active Function
-    func_node_id = f"func_{active_func.name}"
+    # Node 2: Implementation (Always the production function)
+    func_node_id = f"func_{prod_name}"
     elements.append({
         "data": {
             "id": func_node_id,
-            "label": f"fn {active_func.name}()\n[{trace_status.status}]",
+            "name": prod_name,
+            "label": f"fn {prod_name}()\n[{impl_status}]",
             "type": "function",
-            "status": trace_status.status,
-            "kind": active_func.kind,
+            "status": impl_status,
+            "kind": "code",
         }
     })
 
-    # Edge 1: Story ---> Active Function
-    edge_label = f"{trace_status.similarity * 100:.1f}% ({trace_status.source})" if trace_status.similarity > 0 else "unlinked"
+    # Edge 1: Story ---> Implementation
+    sim = trace_status.similarity if trace_status else 0.0
+    src = trace_status.source if trace_status else "none"
+    edge_label = f"{sim * 100:.1f}% ({src})" if sim > 0 else "unlinked"
     elements.append({
         "data": {
             "id": "edge_story_func",
             "source": f"story_{story_id}",
             "target": func_node_id,
             "label": edge_label,
-            "similarity": trace_status.similarity,
-            "status": trace_status.status,
+            "similarity": sim,
+            "status": impl_status,
         }
     })
 
-    # Node 3: Unit Test
-    test_node_id = "test_node"
-    test_label = "Unit Test\n❌ Missing"
-    test_status = "missing"
-    if trace_status.has_test_assertion:
-        test_label = f"Test: {trace_status.linked_test_symbol or 'test'}\n✅ Assertion Passed"
+    # Node 3: Verification (Always the test fixture)
+    test_node_id = f"test_{test_func.name}" if test_func else "test_node"
+    test_symbol = test_func.name if test_func else (trace_status.linked_test_symbol or "unit_test")
+    if test_func:
+        test_label = f"Test: {test_func.name}\n" + ("✅ Assertion Passed" if has_test_assertion else "❌ Missing Assertion")
+        test_status = "passed" if has_test_assertion else "missing"
+    elif trace_status.has_test_assertion:
+        test_label = f"Test: {test_symbol}\n✅ Assertion Passed"
         test_status = "passed"
+    else:
+        test_label = "Unit Test\n❌ Missing"
+        test_status = "missing"
 
     elements.append({
         "data": {
             "id": test_node_id,
+            "name": test_symbol,
             "label": test_label,
             "type": "test",
             "status": test_status,
         }
     })
 
-    # Edge 2: Active Function ---> Unit Test
-    edge_assertion_label = "asserts" if trace_status.has_test_assertion else "untested"
+    # Edge 2: Implementation ---> Verification
+    edge_assertion_label = "asserts" if test_status == "passed" else "untested"
     elements.append({
         "data": {
             "id": "edge_func_test",
@@ -845,17 +940,20 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
         }
     })
 
-    # Resolve deterministic AC status for active story
+    # Deterministic acceptance criteria evaluation for active story
     resolved_ac_statuses = trace_status.ac_statuses
     if not resolved_ac_statuses and matched_story:
         resolved_ac_statuses = evaluate_acceptance_criteria(matched_story, functions, embedder=embedder)
 
+    latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+
     return GraphResponse(
         graph=CytoscapeGraph(elements=elements),
-        active_function=active_func.name,
+        active_function=prod_name,
         story_id=story_id,
         user_story=user_story_text,
-        ac_statuses=resolved_ac_statuses,
+        ac_statuses=resolved_ac_statuses or [],
+        latency_ms=latency_ms,
         analysed_at=now,
     )
 

@@ -140,6 +140,7 @@ class GraphResponse(BaseModel):
         default_factory=list,
         description="Acceptance criteria verified for the active viewport story",
     )
+    latency_ms: float = 0.0
     analysed_at: datetime
 
 

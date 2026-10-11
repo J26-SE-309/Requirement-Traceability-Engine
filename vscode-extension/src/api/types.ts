@@ -57,6 +57,7 @@ export interface FunctionTraceStatus {
   source: "tag" | "semantic" | "none";
   has_test_assertion: boolean;
   linked_test_symbol?: string | null;
+  called_symbols?: string[];
   rationale: string;
 }
 
@@ -108,6 +109,7 @@ export interface GraphResponse {
   story_id?: string | null;
   user_story?: string | null;
   ac_statuses?: unknown[];
+  latency_ms?: number;
   analysed_at: string;
 }
 

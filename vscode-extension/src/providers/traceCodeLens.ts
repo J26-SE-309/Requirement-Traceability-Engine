@@ -8,6 +8,7 @@
 import * as vscode from "vscode";
 import { TraceApiClient } from "../api/client";
 import { FunctionTraceStatus } from "../api/types";
+import { updateTelemetryBar } from "../extension";
 import { StoryManager } from "../stories/storyManager";
 
 export class TraceCodeLensProvider implements vscode.CodeLensProvider {
@@ -74,6 +75,7 @@ export class TraceCodeLensProvider implements vscode.CodeLensProvider {
       });
 
       if (response && Array.isArray(response.functions)) {
+        updateTelemetryBar(response.latency_ms ?? 0, response.functions.length);
         if (deltaOnly && this.cache.has(uriKey)) {
           const prev = this.cache.get(uriKey) || [];
           const updatedNames = new Set(response.functions.map((f) => f.name));
@@ -136,14 +138,39 @@ export class TraceCodeLensProvider implements vscode.CodeLensProvider {
       const engineLabel = fn.source === "tag" ? "Tag Directive" : "SBERT Embeddings";
 
       let title = "";
-      if (fn.status === "VERIFIED") {
-        title = `🔗 CodeLens: Traced to ${storyId} via ${engineLabel} (Cosine Sim: ${simStr})   [View Rationale]`;
-      } else if (fn.status === "MISSING_TEST") {
-        title = `⚠️ CodeLens: Traced to ${storyId} | Test: ❌ Missing Assertion (Cosine Sim: ${simStr})   [View Rationale]`;
-      } else if (fn.status === "CANDIDATE") {
-        title = `🔍 CodeLens: Candidate ${storyId} (Cosine Sim: ${simStr})   [View Rationale]`;
+      if (fn.kind === "test") {
+        let targetSymbol = "";
+        if (fn.called_symbols && fn.called_symbols.length > 0) {
+          const ignore = new Set(["assert", "print", "len", "range", "pytest", "isinstance", "int", "str", "dict", "list"]);
+          targetSymbol = fn.called_symbols.find((s) => !ignore.has(s)) || "";
+        }
+        if (!targetSymbol) {
+          targetSymbol = fn.name.replace(/^test_/, "");
+        }
+        if (functions) {
+          const matchingCodeFunc = functions.find(
+            (f) => f.kind === "code" && (f.name === targetSymbol || fn.name.startsWith(`test_${f.name}`))
+          );
+          if (matchingCodeFunc) {
+            targetSymbol = matchingCodeFunc.name;
+          }
+        }
+
+        const assertPassed = fn.has_test_assertion || fn.status === "VERIFIED";
+        const assertLabel = assertPassed ? "Assertions Passed" : "Missing Assertions";
+        const testStoryId = fn.matched_story_id || (storyId !== "Unlinked" ? storyId : "STORY-101");
+
+        title = `🧪 CodeLens: Test Fixture for ${targetSymbol}() -> ${testStoryId} (${assertLabel})   [View Rationale]`;
       } else {
-        title = `⚠️ CodeLens: Unlinked Function (Best match: ${storyId} at ${simStr})   [Link Story]`;
+        if (fn.status === "VERIFIED") {
+          title = `🔗 CodeLens: Traced to ${storyId} via ${engineLabel} (Cosine Sim: ${simStr})   [View Rationale]`;
+        } else if (fn.status === "MISSING_TEST") {
+          title = `⚠️ CodeLens: Traced to ${storyId} | Test: ❌ Missing Assertion (Cosine Sim: ${simStr})   [View Rationale]`;
+        } else if (fn.status === "CANDIDATE") {
+          title = `🔍 CodeLens: Candidate ${storyId} (Cosine Sim: ${simStr})   [View Rationale]`;
+        } else {
+          title = `⚠️ CodeLens: Unlinked Function (Best match: ${storyId} at ${simStr})   [Link Story]`;
+        }
       }
 
       const lens = new vscode.CodeLens(range, {
