@@ -21,6 +21,7 @@
     "onCommand:rte.refreshTrace",
     "onCommand:rte.showTraceGraph",
     "onCommand:rte.precommitCheck",
+    "onCommand:rte.scaffoldStoryFiles",
     "onView:rte.backlogView",
     "onView:rte.graphView"
   ],
@@ -41,6 +42,10 @@
       {
         "command": "rte.showStoryDetails",
         "title": "RTE: View Story Acceptance Criteria & Rationale"
+      },
+      {
+        "command": "rte.scaffoldStoryFiles",
+        "title": "RTE: Scaffold Code & Tests from User Story"
       }
     ],
     "viewsContainers": {

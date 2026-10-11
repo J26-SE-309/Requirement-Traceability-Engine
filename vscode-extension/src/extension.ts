@@ -12,6 +12,7 @@ import * as vscode from "vscode";
 import { TraceApiClient } from "./api/client";
 import { FunctionTraceStatus } from "./api/types";
 import { runPrecommitCheck } from "./commands/precommitCheck";
+import { runScaffoldStoryCommand } from "./commands/scaffoldStory";
 import { TraceBacklogPanelProvider } from "./providers/backlogPanel";
 import { TraceGraphPanelProvider } from "./providers/graphPanel";
 import { TraceCodeActionProvider } from "./providers/traceCodeAction";
@@ -141,6 +142,15 @@ export function activate(context: vscode.ExtensionContext): void {
     await runPrecommitCheck();
   });
   context.subscriptions.push(precommitCmd);
+
+  // Command: rte.scaffoldStoryFiles
+  const scaffoldCmd = vscode.commands.registerCommand(
+    "rte.scaffoldStoryFiles",
+    async (targetStoryId?: string) => {
+      await runScaffoldStoryCommand(targetStoryId);
+    }
+  );
+  context.subscriptions.push(scaffoldCmd);
 
   // Command: rte.showStoryDetails (Invoked on clicking CodeLens badges)
   const showDetailsCmd = vscode.commands.registerCommand(

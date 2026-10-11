@@ -36,11 +36,13 @@ export class TraceBacklogPanelProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.html = this._getHtmlForWebview();
 
-    // Listen to messages from the webview (e.g. toggle switch clicks)
-    webviewView.webview.onDidReceiveMessage((message) => {
+    // Listen to messages from the webview (e.g. toggle switch clicks, scaffold button)
+    webviewView.webview.onDidReceiveMessage(async (message) => {
       if (message.type === "TOGGLE_SCOPE_FILTER") {
         this._scopeFilterEnabled = message.value;
         this.updateBacklog();
+      } else if (message.type === "SCAFFOLD_STORY") {
+        await vscode.commands.executeCommand("rte.scaffoldStoryFiles", message.storyId);
       }
     });
 
@@ -321,6 +323,36 @@ export class TraceBacklogPanelProvider implements vscode.WebviewViewProvider {
       color: #c9d1d9;
     }
 
+    .card-actions {
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(48, 54, 61, 0.4);
+      display: flex;
+      justify-content: flex-end;
+    }
+    .scaffold-btn {
+      background: #1f6feb;
+      color: #ffffff;
+      border: 1px solid rgba(240, 246, 252, 0.1);
+      border-radius: 4px;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: inherit;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+    .scaffold-btn:hover {
+      background: #388bfd;
+      transform: translateY(-1px);
+    }
+    .scaffold-btn:active {
+      transform: translateY(0);
+    }
+
     /* Footer Hidden Stories Counter */
     .hidden-footer {
       margin-top: auto;
@@ -363,6 +395,12 @@ export class TraceBacklogPanelProvider implements vscode.WebviewViewProvider {
       <div class="story-title" id="card-story-title">Loading requirement specification...</div>
 
       <div class="ac-list" id="card-ac-list"></div>
+
+      <div class="card-actions">
+        <button id="scaffold-btn" class="scaffold-btn" title="Generate implementation and test files for this story">
+          ⚡ Scaffold Code & Tests
+        </button>
+      </div>
     </div>
 
     <!-- Background Stories Hidden Counter -->
@@ -374,6 +412,20 @@ export class TraceBacklogPanelProvider implements vscode.WebviewViewProvider {
 
   <script>
     const vscode = acquireVsCodeApi();
+
+    const scaffoldBtn = document.getElementById('scaffold-btn');
+    if (scaffoldBtn) {
+      scaffoldBtn.addEventListener('click', () => {
+        const storyIdEl = document.getElementById('card-story-id');
+        const storyId = storyIdEl ? storyIdEl.textContent.trim() : null;
+        if (storyId) {
+          vscode.postMessage({
+            type: 'SCAFFOLD_STORY',
+            storyId: storyId
+          });
+        }
+      });
+    }
 
     const scopeToggle = document.getElementById('scope-toggle');
     scopeToggle.addEventListener('change', (e) => {
