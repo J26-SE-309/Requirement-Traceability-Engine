@@ -16,7 +16,8 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
 
   private _view?: vscode.WebviewView;
   private _debounceTimer?: NodeJS.Timeout;
-  private _lastSignature?: string;
+  private _lastGraphResponse?: GraphResponse;
+  private _lastFileName?: string;
 
   constructor(private readonly _extensionUri: vscode.Uri) {}
 
@@ -36,46 +37,32 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.onDidReceiveMessage((message) => {
       if (message.type === "READY") {
+        if (this._lastGraphResponse) {
+          webviewView.webview.postMessage({
+            type: "UPDATE_GRAPH",
+            data: this._lastGraphResponse,
+            fileName: this._lastFileName,
+          });
+        }
         this.updateViewport();
       }
     });
 
     webviewView.onDidChangeVisibility(() => {
-      if (webviewView.visible) {
-        this.updateViewport();
-      }
+      this.updateViewport();
     });
 
-    // Track active editor cursor position changes
-    vscode.window.onDidChangeTextEditorSelection((e) => {
-      this._onCursorChanged(e.textEditor);
-    });
-
-    vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (editor) {
-        this._onCursorChanged(editor);
-      }
-    });
+    // Track active editor and cursor line changes (matching backlogPanel reliability)
+    vscode.window.onDidChangeTextEditorSelection(() => this._debounceUpdate());
+    vscode.window.onDidChangeActiveTextEditor(() => this._debounceUpdate());
 
     // Initial render for active editor
-    if (vscode.window.activeTextEditor) {
-      this._onCursorChanged(vscode.window.activeTextEditor);
-    }
+    this.updateViewport();
   }
 
   public updateViewport(targetEditor?: vscode.TextEditor, targetLine?: number): void {
     const editor = targetEditor || vscode.window.activeTextEditor;
-    if (editor) {
-      if (targetLine !== undefined) {
-        void this._fetchAndRenderGraph(editor.document, targetLine);
-      } else {
-        this._onCursorChanged(editor, true);
-      }
-    }
-  }
-
-  private _onCursorChanged(editor: vscode.TextEditor, force: boolean = false): void {
-    if (!this._view || !this._view.visible) {
+    if (!editor || !this._view) {
       return;
     }
 
@@ -84,28 +71,23 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    const cursorLine = editor.selection.active.line + 1; // 1-indexed for backend
-    const signature = `${doc.uri.toString()}#L${cursorLine}@v${doc.version}`;
+    const line = targetLine !== undefined ? targetLine : editor.selection.active.line + 1;
+    void this._fetchAndRenderGraph(doc, line);
+  }
 
-    if (!force && this._lastSignature === signature) {
-      return;
-    }
-    this._lastSignature = signature;
-
+  private _debounceUpdate(): void {
     if (this._debounceTimer) {
       clearTimeout(this._debounceTimer);
     }
-
-    this._debounceTimer = setTimeout(async () => {
-      await this._fetchAndRenderGraph(doc, cursorLine);
-    }, 150);
+    this._debounceTimer = setTimeout(() => {
+      this.updateViewport();
+    }, 120);
   }
 
   public async _fetchAndRenderGraph(document: vscode.TextDocument, cursorLine: number): Promise<void> {
     if (!this._view) {
       return;
     }
-
 
     try {
       const client = TraceApiClient.getInstance();
@@ -118,8 +100,9 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
         stories: stories,
       });
 
-      // Pass active filename along with backend graph payload
       const fileName = document.uri.fsPath.split(/[\/\\]/).pop() || "document.py";
+      this._lastGraphResponse = response;
+      this._lastFileName = fileName;
 
       this._view.webview.postMessage({
         type: "UPDATE_GRAPH",
@@ -134,6 +117,7 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       });
     }
   }
+
 
   private _getHtmlForWebview(_webview: vscode.Webview): string {
     return `<!DOCTYPE html>

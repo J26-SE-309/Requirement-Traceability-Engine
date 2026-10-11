@@ -68,9 +68,10 @@ export function activate(context: vscode.ExtensionContext): void {
   // =========================================================================
 
   const selector: vscode.DocumentSelector = [
-    { language: "python", scheme: "file" },
-    { language: "typescript", scheme: "file" },
+    { language: "python" },
+    { language: "typescript" },
   ];
+
 
   // Inline CodeLens Provider
   const codeLensProvider = new TraceCodeLensProvider();
@@ -144,7 +145,17 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
+      // Automatically move cursor to target function and update the Graph Panel
+      const activeEditor = vscode.window.activeTextEditor;
+      if (activeEditor) {
+        const line = Math.max(0, fn.start_line - 1);
+        activeEditor.selection = new vscode.Selection(line, 0, line, 0);
+        activeEditor.revealRange(new vscode.Range(line, 0, line, 0));
+        graphProvider.updateViewport(activeEditor, fn.start_line);
+      }
+
       const items: vscode.QuickPickItem[] = [];
+
 
       items.push({
         label: `$(symbol-function) Function: ${fn.qualified_name || fn.name}`,
