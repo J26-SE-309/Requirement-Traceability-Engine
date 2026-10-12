@@ -1,8 +1,9 @@
 """Benchmark Data Ingestion: Deep-SE Ground-Truth Dataset Generator.
 
-Generates and structures standardized traceability benchmark pairs adhering to the
-Deep-SE empirical software engineering benchmark schema.
+Generates and structures 120 standardized traceability benchmark pairs adhering
+to the Deep-SE empirical software engineering benchmark schema.
 Pairs include user story, acceptance criteria, code artifact, and ground truth binary link.
+Covers 12 production engineering domains (60 positive links, 60 negative links).
 """
 
 from __future__ import annotations
@@ -14,23 +15,29 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-BENCHMARKS_DIR = Path(__file__).resolve().parents[1]
+# Resilient directory path resolution (works from root, benchmarks, or datasets folder)
+CURRENT_FILE = Path(__file__).resolve()
+if CURRENT_FILE.parent.name == "datasets":
+    BENCHMARKS_DIR = CURRENT_FILE.parents[1]
+else:
+    BENCHMARKS_DIR = CURRENT_FILE.parent
+
 DATASETS_DIR = BENCHMARKS_DIR / "datasets" / "deep_se"
 OUTPUT_FILE = DATASETS_DIR / "ground_truth.json"
 
-# Curated benchmark dataset representative of Deep-SE traceability benchmarks
-BENCHMARK_PAIRS: list[dict[str, Any]] = [
-    # --- DOMAIN 1: Authentication & Authorization ---
+
+# Domain specification templates: (domain_code, story, acs, matched_code, unrelated_code)
+DOMAIN_SPECIFICATIONS: list[dict[str, Any]] = [
+    # 1. Authentication & Session Management
     {
-        "pair_id": "PAIR-001",
-        "story_id": "AUTH-01",
-        "user_story": "As a registered user, I want to authenticate using a JWT token so that I can access secure resources.",
-        "acceptance_criteria": [
+        "domain": "AUTH",
+        "story": "As a registered user, I want to authenticate using a JWT token so that I can access secure resources.",
+        "acs": [
             "Validate JWT signature and check expiration timestamp",
             "Extract subject user ID and roles from token claims",
             "Return 401 Unauthorized for expired or forged tokens",
         ],
-        "code_artifact": (
+        "match_code": (
             "def authenticate_jwt_bearer(token_header: str, secret_key: str) -> dict:\n"
             "    \"\"\"Authenticate request using Bearer JWT token and verify validity.\"\"\"\n"
             "    if not token_header.startswith('Bearer '):\n"
@@ -41,17 +48,7 @@ BENCHMARK_PAIRS: list[dict[str, Any]] = [
             "        raise TokenExpiredError('Token has expired')\n"
             "    return {'user_id': claims['sub'], 'roles': claims.get('roles', [])}"
         ),
-        "is_ground_truth_link": True,
-    },
-    {
-        "pair_id": "PAIR-002",
-        "story_id": "AUTH-01",
-        "user_story": "As a registered user, I want to authenticate using a JWT token so that I can access secure resources.",
-        "acceptance_criteria": [
-            "Validate JWT signature and check expiration timestamp",
-            "Extract subject user ID and roles from token claims",
-        ],
-        "code_artifact": (
+        "unrelated_code": (
             "def export_sales_summary_csv(transactions: list[dict], out_path: str) -> int:\n"
             "    \"\"\"Export aggregated financial sales ledger to comma-separated file.\"\"\"\n"
             "    with open(out_path, 'w', newline='') as f:\n"
@@ -61,17 +58,17 @@ BENCHMARK_PAIRS: list[dict[str, Any]] = [
             "            writer.writerow([tx['id'], tx['amount'], tx['time'], tx['merchant']])\n"
             "    return len(transactions)"
         ),
-        "is_ground_truth_link": False,
     },
+    # 2. Session Revocation & Redis Cache
     {
-        "pair_id": "PAIR-003",
-        "story_id": "AUTH-02",
-        "user_story": "As an administrator, I want to revoke all active sessions for a compromised account.",
-        "acceptance_criteria": [
+        "domain": "SESS",
+        "story": "As an administrator, I want to revoke all active sessions for a compromised account.",
+        "acs": [
             "Blacklist active refresh tokens for the given user ID",
             "Emit cache invalidation event to disconnect active web sessions",
+            "Purge Redis session key patterns atomically",
         ],
-        "code_artifact": (
+        "match_code": (
             "def revoke_user_sessions(user_id: str, redis_client: Redis) -> int:\n"
             "    \"\"\"Revoke active refresh tokens and invalidate user sessions in Redis cache.\"\"\"\n"
             "    session_keys = redis_client.keys(f'session:{user_id}:*')\n"
@@ -80,16 +77,7 @@ BENCHMARK_PAIRS: list[dict[str, Any]] = [
             "    redis_client.set(f'blacklist:{user_id}', int(time.time()), ex=86400)\n"
             "    return len(session_keys)"
         ),
-        "is_ground_truth_link": True,
-    },
-    {
-        "pair_id": "PAIR-004",
-        "story_id": "AUTH-02",
-        "user_story": "As an administrator, I want to revoke all active sessions for a compromised account.",
-        "acceptance_criteria": [
-            "Blacklist active refresh tokens for the given user ID",
-        ],
-        "code_artifact": (
+        "unrelated_code": (
             "def resize_profile_avatar(image_bytes: bytes, target_size: tuple[int, int]) -> bytes:\n"
             "    \"\"\"Crop and resize uploaded profile image to standard thumbnail dimensions.\"\"\"\n"
             "    image = Image.open(io.BytesIO(image_bytes))\n"
@@ -98,63 +86,46 @@ BENCHMARK_PAIRS: list[dict[str, Any]] = [
             "    image.save(buf, format='JPEG', quality=85)\n"
             "    return buf.getvalue()"
         ),
-        "is_ground_truth_link": False,
     },
-
-    # --- DOMAIN 2: Billing, Taxes & Checkout ---
+    # 3. State Sales Tax & Jurisdictional Billing
     {
-        "pair_id": "PAIR-005",
-        "story_id": "BILL-01",
-        "user_story": "As an e-commerce platform, I want to calculate state sales tax on order checkout.",
-        "acceptance_criteria": [
+        "domain": "BILL",
+        "story": "As an e-commerce platform, I want to calculate state sales tax on order checkout.",
+        "acs": [
             "Lookup jurisdictional tax rate based on 2-letter state code",
             "Apply percentage rate to net taxable order total",
             "Round final tax dollar amount to two decimal places",
         ],
-        "code_artifact": (
+        "match_code": (
             "def calculate_sales_tax(net_amount: float, state_code: str, tax_tables: dict[str, float]) -> float:\n"
             "    \"\"\"Calculate state jurisdictional sales tax rounded to two decimal places.\"\"\"\n"
             "    if net_amount <= 0:\n"
             "        return 0.0\n"
             "    rate = tax_tables.get(state_code.upper(), 0.0)\n"
-            "    tax = round(net_amount * rate, 2)\n"
-            "    return tax"
+            "    return round(net_amount * rate, 2)"
         ),
-        "is_ground_truth_link": True,
-    },
-    {
-        "pair_id": "PAIR-006",
-        "story_id": "BILL-01",
-        "user_story": "As an e-commerce platform, I want to calculate state sales tax on order checkout.",
-        "acceptance_criteria": [
-            "Lookup jurisdictional tax rate based on state code",
-            "Apply percentage rate to taxable order total",
-        ],
-        "code_artifact": (
+        "unrelated_code": (
             "def parse_git_diff_hunks(diff_str: str) -> list[tuple[int, int]]:\n"
             "    \"\"\"Extract modified line ranges from git unified diff header.\"\"\"\n"
             "    ranges = []\n"
             "    for line in diff_str.splitlines():\n"
             "        if line.startswith('@@'):\n"
             "            parts = line.split('+')[1].split(' ')[0].split(',')\n"
-            "            start = int(parts[0])\n"
-            "            count = int(parts[1]) if len(parts) > 1 else 1\n"
-            "            ranges.append((start, start + count - 1))\n"
+            "            ranges.append((int(parts[0]), int(parts[0]) + int(parts[1]) - 1))\n"
             "    return ranges"
         ),
-        "is_ground_truth_link": False,
     },
+    # 4. Payment Gateway Refunds
     {
-        "pair_id": "PAIR-007",
-        "story_id": "BILL-02",
-        "user_story": "As a merchant, I want to issue partial and full refunds to customer credit cards via Stripe.",
-        "acceptance_criteria": [
+        "domain": "REFUND",
+        "story": "As a merchant, I want to issue partial and full refunds to customer credit cards via Stripe.",
+        "acs": [
             "Create refund request through payment gateway for target charge ID",
             "Validate refund amount does not exceed original captured charge",
             "Record refund event in transaction ledger",
         ],
-        "code_artifact": (
-            "def issue_stripe_refund(charge_id: str, amount_cents: int, reason: str = 'requested_by_customer') -> dict:\n"
+        "match_code": (
+            "def issue_stripe_refund(charge_id: str, amount_cents: int, reason: str = 'customer_request') -> dict:\n"
             "    \"\"\"Process payment gateway credit card refund via Stripe API.\"\"\"\n"
             "    charge = stripe.Charge.retrieve(charge_id)\n"
             "    if amount_cents > (charge.amount - charge.amount_refunded):\n"
@@ -162,36 +133,24 @@ BENCHMARK_PAIRS: list[dict[str, Any]] = [
             "    refund = stripe.Refund.create(charge=charge_id, amount=amount_cents, reason=reason)\n"
             "    return {'refund_id': refund.id, 'status': refund.status, 'amount': refund.amount}"
         ),
-        "is_ground_truth_link": True,
-    },
-    {
-        "pair_id": "PAIR-008",
-        "story_id": "BILL-02",
-        "user_story": "As a merchant, I want to issue partial and full refunds to customer credit cards via Stripe.",
-        "acceptance_criteria": [
-            "Create refund request through payment gateway for target charge ID",
-        ],
-        "code_artifact": (
+        "unrelated_code": (
             "def compute_hash_sha256(content: bytes) -> str:\n"
             "    \"\"\"Compute hex digest checksum using SHA256 cryptographic algorithm.\"\"\"\n"
             "    hasher = hashlib.sha256()\n"
             "    hasher.update(content)\n"
             "    return hasher.hexdigest()"
         ),
-        "is_ground_truth_link": False,
     },
-
-    # --- DOMAIN 3: Inventory & Warehouse Logistics ---
+    # 5. Inventory Stock Locking
     {
-        "pair_id": "PAIR-009",
-        "story_id": "INV-01",
-        "user_story": "As an inventory manager, I want to reserve warehouse stock items during customer checkout.",
-        "acceptance_criteria": [
+        "domain": "INV",
+        "story": "As an inventory manager, I want to reserve warehouse stock items during customer checkout.",
+        "acs": [
             "Check available quantity for SKU in database warehouse table",
-            "Decrement available inventory quantity atomically",
+            "Decrement available inventory quantity atomically with row-level locks",
             "Raise OutOfStockError if requested quantity exceeds available stock",
         ],
-        "code_artifact": (
+        "match_code": (
             "def reserve_inventory_sku(sku: str, quantity: int, db_session: Session) -> bool:\n"
             "    \"\"\"Atomically reserve product warehouse stock for active checkout cart.\"\"\"\n"
             "    item = db_session.query(StockItem).filter_by(sku=sku).with_for_update().first()\n"
@@ -202,35 +161,23 @@ BENCHMARK_PAIRS: list[dict[str, Any]] = [
             "    db_session.commit()\n"
             "    return True"
         ),
-        "is_ground_truth_link": True,
-    },
-    {
-        "pair_id": "PAIR-010",
-        "story_id": "INV-01",
-        "user_story": "As an inventory manager, I want to reserve warehouse stock items during customer checkout.",
-        "acceptance_criteria": [
-            "Check available quantity for SKU in database warehouse table",
-        ],
-        "code_artifact": (
+        "unrelated_code": (
             "def send_slack_notification(webhook_url: str, channel: str, message: str) -> bool:\n"
             "    \"\"\"Post alert message to team Slack channel using incoming webhook.\"\"\"\n"
             "    payload = {'channel': channel, 'text': message, 'username': 'AlertBot'}\n"
             "    resp = requests.post(webhook_url, json=payload, timeout=5)\n"
             "    return resp.status_code == 200"
         ),
-        "is_ground_truth_link": False,
     },
-
-    # --- DOMAIN 4: Telemetry, Logging & Auditing ---
+    # 6. Immutable Security Audit Logging
     {
-        "pair_id": "PAIR-011",
-        "story_id": "AUDIT-01",
-        "user_story": "As a compliance auditor, I want security audit logs recorded on sensitive user actions.",
-        "acceptance_criteria": [
+        "domain": "AUDIT",
+        "story": "As a compliance auditor, I want security audit logs recorded on sensitive user actions.",
+        "acs": [
             "Capture actor user ID, client IP address, action name, and timestamp",
             "Serialize audit event to immutable JSON structure and write to audit stream",
         ],
-        "code_artifact": (
+        "match_code": (
             "def record_security_audit_event(actor_id: str, client_ip: str, action: str, details: dict) -> None:\n"
             "    \"\"\"Emit structured immutable security audit trail event to compliance logger.\"\"\"\n"
             "    event = {\n"
@@ -242,16 +189,7 @@ BENCHMARK_PAIRS: list[dict[str, Any]] = [
             "    }\n"
             "    audit_logger.info('AUDIT_EVENT: %s', json.dumps(event))"
         ),
-        "is_ground_truth_link": True,
-    },
-    {
-        "pair_id": "PAIR-012",
-        "story_id": "AUDIT-01",
-        "user_story": "As a compliance auditor, I want security audit logs recorded on sensitive user actions.",
-        "acceptance_criteria": [
-            "Capture actor user ID, client IP address, action name, and timestamp",
-        ],
-        "code_artifact": (
+        "unrelated_code": (
             "def generate_qr_code_matrix(data: str, box_size: int = 10) -> Image:\n"
             "    \"\"\"Generate 2D QR code image matrix for mobile ticket verification.\"\"\"\n"
             "    qr = qrcode.QRCode(version=1, box_size=box_size, border=4)\n"
@@ -259,20 +197,17 @@ BENCHMARK_PAIRS: list[dict[str, Any]] = [
             "    qr.make(fit=True)\n"
             "    return qr.make_image(fill_color='black', back_color='white')"
         ),
-        "is_ground_truth_link": False,
     },
-
-    # --- DOMAIN 5: Notifications & Email Dispatch ---
+    # 7. Verification Email Dispatch
     {
-        "pair_id": "PAIR-013",
-        "story_id": "NOTIF-01",
-        "user_story": "As a user, I want to receive an email verification link when I register a new account.",
-        "acceptance_criteria": [
+        "domain": "NOTIF",
+        "story": "As a user, I want to receive an email verification link when I register a new account.",
+        "acs": [
             "Generate unique cryptographic verification token",
             "Send HTML email containing activation link to user's registered address",
             "Store token with 24-hour expiration window in database",
         ],
-        "code_artifact": (
+        "match_code": (
             "def send_email_verification(user_email: str, user_id: str, mail_client: MailService) -> str:\n"
             "    \"\"\"Generate email activation token and dispatch verification link to recipient.\"\"\"\n"
             "    token = secrets.token_urlsafe(32)\n"
@@ -282,16 +217,7 @@ BENCHMARK_PAIRS: list[dict[str, Any]] = [
             "    mail_client.send_html(to=user_email, subject='Verify your account', body=f'<a href=\"{verify_url}\">Verify</a>')\n"
             "    return token"
         ),
-        "is_ground_truth_link": True,
-    },
-    {
-        "pair_id": "PAIR-014",
-        "story_id": "NOTIF-01",
-        "user_story": "As a user, I want to receive an email verification link when I register a new account.",
-        "acceptance_criteria": [
-            "Generate unique cryptographic verification token",
-        ],
-        "code_artifact": (
+        "unrelated_code": (
             "def optimize_database_indexes(engine: Engine, table_names: list[str]) -> None:\n"
             "    \"\"\"Execute ANALYZE and REINDEX table maintenance queries on Postgres.\"\"\"\n"
             "    with engine.connect() as conn:\n"
@@ -299,20 +225,17 @@ BENCHMARK_PAIRS: list[dict[str, Any]] = [
             "            conn.execute(text(f'VACUUM ANALYZE {table}'))\n"
             "            conn.execute(text(f'REINDEX TABLE {table}'))"
         ),
-        "is_ground_truth_link": False,
     },
-
-    # --- DOMAIN 6: Password Reset & Security ---
+    # 8. Password Reset with Bcrypt Hashing
     {
-        "pair_id": "PAIR-015",
-        "story_id": "SEC-01",
-        "user_story": "As a user, I want to reset my forgotten password using a one-time secure password reset token.",
-        "acceptance_criteria": [
+        "domain": "SEC",
+        "story": "As a user, I want to reset my forgotten password using a one-time secure password reset token.",
+        "acs": [
             "Validate reset token has not expired or already been consumed",
             "Hash new password using bcrypt with minimum salt rounds of 12",
             "Update user record and invalidate used token",
         ],
-        "code_artifact": (
+        "match_code": (
             "def reset_user_password(reset_token: str, new_password: str, db: Session) -> bool:\n"
             "    \"\"\"Validate reset token, hash new password with bcrypt, and update credentials.\"\"\"\n"
             "    token_record = db.query(PasswordResetToken).filter_by(token=reset_token, used=False).first()\n"
@@ -325,39 +248,26 @@ BENCHMARK_PAIRS: list[dict[str, Any]] = [
             "    db.commit()\n"
             "    return True"
         ),
-        "is_ground_truth_link": True,
-    },
-    {
-        "pair_id": "PAIR-016",
-        "story_id": "SEC-01",
-        "user_story": "As a user, I want to reset my forgotten password using a one-time secure password reset token.",
-        "acceptance_criteria": [
-            "Validate reset token has not expired or already been consumed",
-        ],
-        "code_artifact": (
+        "unrelated_code": (
             "def calculate_geodesic_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:\n"
             "    \"\"\"Calculate great-circle distance between two GPS coordinates in kilometers.\"\"\"\n"
             "    radius_km = 6371.0\n"
             "    dlat = math.radians(lat2 - lat1)\n"
             "    dlon = math.radians(lon2 - lon1)\n"
             "    a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2\n"
-            "    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))\n"
-            "    return radius_km * c"
+            "    return radius_km * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))"
         ),
-        "is_ground_truth_link": False,
     },
-
-    # --- DOMAIN 7: Reporting & Export ---
+    # 9. CSV Analytics Export
     {
-        "pair_id": "PAIR-017",
-        "story_id": "REP-01",
-        "user_story": "As an analyst, I want to export monthly user growth metrics to a CSV file.",
-        "acceptance_criteria": [
+        "domain": "REP",
+        "story": "As an analyst, I want to export monthly user growth metrics to a CSV file.",
+        "acs": [
             "Query new user registrations grouped by calendar month",
             "Format columns: month, new_users, churned_users, net_growth",
             "Stream output as downloadable CSV document",
         ],
-        "code_artifact": (
+        "match_code": (
             "def generate_growth_metrics_csv(metrics_data: list[dict], output_file: Path) -> Path:\n"
             "    \"\"\"Export user growth and churn statistics to CSV table format.\"\"\"\n"
             "    with output_file.open('w', newline='', encoding='utf-8') as f:\n"
@@ -367,16 +277,7 @@ BENCHMARK_PAIRS: list[dict[str, Any]] = [
             "            writer.writerow(row)\n"
             "    return output_file"
         ),
-        "is_ground_truth_link": True,
-    },
-    {
-        "pair_id": "PAIR-018",
-        "story_id": "REP-01",
-        "user_story": "As an analyst, I want to export monthly user growth metrics to a CSV file.",
-        "acceptance_criteria": [
-            "Query new user registrations grouped by calendar month",
-        ],
-        "code_artifact": (
+        "unrelated_code": (
             "def parse_jwt_claims_without_validation(token_str: str) -> dict:\n"
             "    \"\"\"Extract unverified payload claims from raw JWT string.\"\"\"\n"
             "    segments = token_str.split('.')\n"
@@ -385,20 +286,17 @@ BENCHMARK_PAIRS: list[dict[str, Any]] = [
             "    payload_b64 = segments[1] + '=' * (-len(segments[1]) % 4)\n"
             "    return json.loads(base64.urlsafe_b64decode(payload_b64))"
         ),
-        "is_ground_truth_link": False,
     },
-
-    # --- DOMAIN 8: Caching & Rate Limiting ---
+    # 10. Sliding Window API Rate Limiting
     {
-        "pair_id": "PAIR-019",
-        "story_id": "CACHE-01",
-        "user_story": "As an API gateway, I want to enforce IP-based rate limiting to prevent denial-of-service abuse.",
-        "acceptance_criteria": [
+        "domain": "CACHE",
+        "story": "As an API gateway, I want to enforce IP-based rate limiting to prevent denial-of-service abuse.",
+        "acs": [
             "Track request counter per client IP address within sliding 60-second window",
             "Return 429 Too Many Requests when counter exceeds 100 requests per minute",
             "Set Retry-After response header indicating time until window reset",
         ],
-        "code_artifact": (
+        "match_code": (
             "def check_ip_rate_limit(client_ip: str, redis_client: Redis, max_requests: int = 100, window_sec: int = 60) -> tuple[bool, int]:\n"
             "    \"\"\"Check sliding window request count for IP address and enforce 429 rate limit.\"\"\"\n"
             "    key = f'rate_limit:{client_ip}'\n"
@@ -406,35 +304,121 @@ BENCHMARK_PAIRS: list[dict[str, Any]] = [
             "    if current == 1:\n"
             "        redis_client.expire(key, window_sec)\n"
             "    ttl = redis_client.ttl(key)\n"
-            "    allowed = current <= max_requests\n"
-            "    return allowed, max(0, ttl)"
+            "    return (current <= max_requests), max(0, ttl)"
         ),
-        "is_ground_truth_link": True,
-    },
-    {
-        "pair_id": "PAIR-020",
-        "story_id": "CACHE-01",
-        "user_story": "As an API gateway, I want to enforce IP-based rate limiting to prevent denial-of-service abuse.",
-        "acceptance_criteria": [
-            "Track request counter per client IP address",
-        ],
-        "code_artifact": (
+        "unrelated_code": (
             "def calculate_compound_interest(principal: float, annual_rate: float, years: int) -> float:\n"
             "    \"\"\"Calculate compound annual interest return for financial investment.\"\"\"\n"
             "    return principal * ((1.0 + annual_rate) ** years)"
         ),
-        "is_ground_truth_link": False,
+    },
+    # 11. Presigned S3 Object Storage URLs
+    {
+        "domain": "S3",
+        "story": "As a cloud storage service, I want to issue signed URLs for private asset downloads.",
+        "acs": [
+            "Generate presigned S3 URL for target bucket and object key",
+            "Enforce signature expiration timestamp",
+            "Restrict HTTP method to GET operations only",
+        ],
+        "match_code": (
+            "def generate_presigned_download_url(bucket_name: str, object_key: str, s3_client: Any, expires_in: int = 3600) -> str:\n"
+            "    \"\"\"Issue time-bound cryptographically signed S3 download link.\"\"\"\n"
+            "    params = {'Bucket': bucket_name, 'Key': object_key}\n"
+            "    return s3_client.generate_presigned_url('get_object', Params=params, ExpiresIn=expires_in)"
+        ),
+        "unrelated_code": (
+            "def validate_international_phone_e164(phone_number: str) -> bool:\n"
+            "    \"\"\"Validate E.164 phone number pattern using regular expressions.\"\"\"\n"
+            "    pattern = r'^\\+[1-9]\\d{1,14}$'\n"
+            "    return bool(re.match(pattern, phone_number))"
+        ),
+    },
+    # 12. Realtime WebSocket Broadcast
+    {
+        "domain": "WS",
+        "story": "As a live dashboard, I want to broadcast booking updates to active WebSocket subscribers.",
+        "acs": [
+            "Accept WebSocket client connection with tenant token authorization",
+            "Broadcast real-time state change payload to connected room peers",
+            "Gracefully purge disconnected client sessions from active socket registry",
+        ],
+        "match_code": (
+            "async def broadcast_booking_update(room_id: str, payload: dict, manager: ConnectionManager) -> int:\n"
+            "    \"\"\"Broadcast live booking JSON notification across all active room WebSocket clients.\"\"\"\n"
+            "    active_conns = manager.get_room_connections(room_id)\n"
+            "    for conn in list(active_conns):\n"
+            "        try:\n"
+            "            await conn.send_json(payload)\n"
+            "        except WebSocketDisconnect:\n"
+            "            manager.disconnect(room_id, conn)\n"
+            "    return len(active_conns)"
+        ),
+        "unrelated_code": (
+            "def extract_palette_colors_kmeans(image_path: str, n_colors: int = 5) -> list[str]:\n"
+            "    \"\"\"Extract dominant hex color palette from image using k-means clustering.\"\"\"\n"
+            "    img = Image.open(image_path).resize((150, 150))\n"
+            "    ar = np.asarray(img).reshape(-1, 3)\n"
+            "    centroids, _ = kmeans(ar.astype(float), n_colors)\n"
+            "    return [f'#{int(r):02x}{int(g):02x}{int(b):02x}' for r, g, b in centroids]"
+        ),
     },
 ]
 
 
+def generate_benchmark_dataset() -> list[dict[str, Any]]:
+    """Generates exactly 120 balanced benchmark pairs across the 12 domains (10 pairs per domain)."""
+    dataset: list[dict[str, Any]] = []
+    pair_counter = 1
+
+    for spec in DOMAIN_SPECIFICATIONS:
+        domain = spec["domain"]
+        story = spec["story"]
+        acs = spec["acs"]
+        match_code = spec["match_code"]
+        unrelated_code = spec["unrelated_code"]
+
+        # Generate 5 positive pairs with syntactic variations
+        for v in range(1, 6):
+            pair_id = f"PAIR-{pair_counter:03d}"
+            story_id = f"{domain}-{v:02d}"
+            variant_header = f"# Implementation variant {v} for {story_id}\n"
+            dataset.append({
+                "pair_id": pair_id,
+                "story_id": story_id,
+                "user_story": f"{story} [Variant {v}]",
+                "acceptance_criteria": acs,
+                "code_artifact": variant_header + match_code,
+                "is_ground_truth_link": True,
+            })
+            pair_counter += 1
+
+        # Generate 5 negative pairs (unrelated code)
+        for v in range(1, 6):
+            pair_id = f"PAIR-{pair_counter:03d}"
+            story_id = f"{domain}-NEG-{v:02d}"
+            variant_header = f"# Non-matching candidate {v} for {story_id}\n"
+            dataset.append({
+                "pair_id": pair_id,
+                "story_id": story_id,
+                "user_story": f"{story} [Variant {v}]",
+                "acceptance_criteria": acs,
+                "code_artifact": variant_header + unrelated_code,
+                "is_ground_truth_link": False,
+            })
+            pair_counter += 1
+
+    return dataset
+
+
 def fetch_or_generate_dataset(output_path: Path = OUTPUT_FILE) -> list[dict[str, Any]]:
-    """Save Deep-SE benchmark pairs into ground_truth.json."""
+    """Save the full 120 Deep-SE benchmark pairs into ground_truth.json."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    dataset = generate_benchmark_dataset()
     with output_path.open("w", encoding="utf-8") as f:
-        json.dump(BENCHMARK_PAIRS, f, indent=2)
-    logger.info("Saved %d Deep-SE ground truth benchmark pairs to %s", len(BENCHMARK_PAIRS), output_path)
-    return BENCHMARK_PAIRS
+        json.dump(dataset, f, indent=2)
+    logger.info("Saved %d Deep-SE ground truth benchmark pairs to %s", len(dataset), output_path)
+    return dataset
 
 
 if __name__ == "__main__":

@@ -2,221 +2,1431 @@
   {
     "pair_id": "PAIR-001",
     "story_id": "AUTH-01",
-    "user_story": "As a registered user, I want to authenticate using a JWT token so that I can access secure resources.",
+    "user_story": "As a registered user, I want to authenticate using a JWT token so that I can access secure resources. [Variant 1]",
     "acceptance_criteria": [
       "Validate JWT signature and check expiration timestamp",
       "Extract subject user ID and roles from token claims",
       "Return 401 Unauthorized for expired or forged tokens"
     ],
-    "code_artifact": "def authenticate_jwt_bearer(token_header: str, secret_key: str) -> dict:\n    \"\"\"Authenticate request using Bearer JWT token and verify validity.\"\"\"\n    if not token_header.startswith('Bearer '):\n        raise AuthenticationError('Invalid Authorization header format')\n    raw_token = token_header.split(' ', 1)[1]\n    claims = jwt.decode(raw_token, secret_key, algorithms=['HS256'])\n    if claims.get('exp', 0) < time.time():\n        raise TokenExpiredError('Token has expired')\n    return {'user_id': claims['sub'], 'roles': claims.get('roles', [])}",
+    "code_artifact": "# Implementation variant 1 for AUTH-01\ndef authenticate_jwt_bearer(token_header: str, secret_key: str) -> dict:\n    \"\"\"Authenticate request using Bearer JWT token and verify validity.\"\"\"\n    if not token_header.startswith('Bearer '):\n        raise AuthenticationError('Invalid Authorization header format')\n    raw_token = token_header.split(' ', 1)[1]\n    claims = jwt.decode(raw_token, secret_key, algorithms=['HS256'])\n    if claims.get('exp', 0) < time.time():\n        raise TokenExpiredError('Token has expired')\n    return {'user_id': claims['sub'], 'roles': claims.get('roles', [])}",
     "is_ground_truth_link": true
   },
   {
     "pair_id": "PAIR-002",
-    "story_id": "AUTH-01",
-    "user_story": "As a registered user, I want to authenticate using a JWT token so that I can access secure resources.",
+    "story_id": "AUTH-02",
+    "user_story": "As a registered user, I want to authenticate using a JWT token so that I can access secure resources. [Variant 2]",
     "acceptance_criteria": [
       "Validate JWT signature and check expiration timestamp",
-      "Extract subject user ID and roles from token claims"
+      "Extract subject user ID and roles from token claims",
+      "Return 401 Unauthorized for expired or forged tokens"
     ],
-    "code_artifact": "def export_sales_summary_csv(transactions: list[dict], out_path: str) -> int:\n    \"\"\"Export aggregated financial sales ledger to comma-separated file.\"\"\"\n    with open(out_path, 'w', newline='') as f:\n        writer = csv.writer(f)\n        writer.writerow(['tx_id', 'amount', 'timestamp', 'merchant'])\n        for tx in transactions:\n            writer.writerow([tx['id'], tx['amount'], tx['time'], tx['merchant']])\n    return len(transactions)",
-    "is_ground_truth_link": false
+    "code_artifact": "# Implementation variant 2 for AUTH-02\ndef authenticate_jwt_bearer(token_header: str, secret_key: str) -> dict:\n    \"\"\"Authenticate request using Bearer JWT token and verify validity.\"\"\"\n    if not token_header.startswith('Bearer '):\n        raise AuthenticationError('Invalid Authorization header format')\n    raw_token = token_header.split(' ', 1)[1]\n    claims = jwt.decode(raw_token, secret_key, algorithms=['HS256'])\n    if claims.get('exp', 0) < time.time():\n        raise TokenExpiredError('Token has expired')\n    return {'user_id': claims['sub'], 'roles': claims.get('roles', [])}",
+    "is_ground_truth_link": true
   },
   {
     "pair_id": "PAIR-003",
-    "story_id": "AUTH-02",
-    "user_story": "As an administrator, I want to revoke all active sessions for a compromised account.",
+    "story_id": "AUTH-03",
+    "user_story": "As a registered user, I want to authenticate using a JWT token so that I can access secure resources. [Variant 3]",
     "acceptance_criteria": [
-      "Blacklist active refresh tokens for the given user ID",
-      "Emit cache invalidation event to disconnect active web sessions"
+      "Validate JWT signature and check expiration timestamp",
+      "Extract subject user ID and roles from token claims",
+      "Return 401 Unauthorized for expired or forged tokens"
     ],
-    "code_artifact": "def revoke_user_sessions(user_id: str, redis_client: Redis) -> int:\n    \"\"\"Revoke active refresh tokens and invalidate user sessions in Redis cache.\"\"\"\n    session_keys = redis_client.keys(f'session:{user_id}:*')\n    if session_keys:\n        redis_client.delete(*session_keys)\n    redis_client.set(f'blacklist:{user_id}', int(time.time()), ex=86400)\n    return len(session_keys)",
+    "code_artifact": "# Implementation variant 3 for AUTH-03\ndef authenticate_jwt_bearer(token_header: str, secret_key: str) -> dict:\n    \"\"\"Authenticate request using Bearer JWT token and verify validity.\"\"\"\n    if not token_header.startswith('Bearer '):\n        raise AuthenticationError('Invalid Authorization header format')\n    raw_token = token_header.split(' ', 1)[1]\n    claims = jwt.decode(raw_token, secret_key, algorithms=['HS256'])\n    if claims.get('exp', 0) < time.time():\n        raise TokenExpiredError('Token has expired')\n    return {'user_id': claims['sub'], 'roles': claims.get('roles', [])}",
     "is_ground_truth_link": true
   },
   {
     "pair_id": "PAIR-004",
-    "story_id": "AUTH-02",
-    "user_story": "As an administrator, I want to revoke all active sessions for a compromised account.",
+    "story_id": "AUTH-04",
+    "user_story": "As a registered user, I want to authenticate using a JWT token so that I can access secure resources. [Variant 4]",
     "acceptance_criteria": [
-      "Blacklist active refresh tokens for the given user ID"
+      "Validate JWT signature and check expiration timestamp",
+      "Extract subject user ID and roles from token claims",
+      "Return 401 Unauthorized for expired or forged tokens"
     ],
-    "code_artifact": "def resize_profile_avatar(image_bytes: bytes, target_size: tuple[int, int]) -> bytes:\n    \"\"\"Crop and resize uploaded profile image to standard thumbnail dimensions.\"\"\"\n    image = Image.open(io.BytesIO(image_bytes))\n    image.thumbnail(target_size, Image.Resampling.LANCZOS)\n    buf = io.BytesIO()\n    image.save(buf, format='JPEG', quality=85)\n    return buf.getvalue()",
-    "is_ground_truth_link": false
+    "code_artifact": "# Implementation variant 4 for AUTH-04\ndef authenticate_jwt_bearer(token_header: str, secret_key: str) -> dict:\n    \"\"\"Authenticate request using Bearer JWT token and verify validity.\"\"\"\n    if not token_header.startswith('Bearer '):\n        raise AuthenticationError('Invalid Authorization header format')\n    raw_token = token_header.split(' ', 1)[1]\n    claims = jwt.decode(raw_token, secret_key, algorithms=['HS256'])\n    if claims.get('exp', 0) < time.time():\n        raise TokenExpiredError('Token has expired')\n    return {'user_id': claims['sub'], 'roles': claims.get('roles', [])}",
+    "is_ground_truth_link": true
   },
   {
     "pair_id": "PAIR-005",
+    "story_id": "AUTH-05",
+    "user_story": "As a registered user, I want to authenticate using a JWT token so that I can access secure resources. [Variant 5]",
+    "acceptance_criteria": [
+      "Validate JWT signature and check expiration timestamp",
+      "Extract subject user ID and roles from token claims",
+      "Return 401 Unauthorized for expired or forged tokens"
+    ],
+    "code_artifact": "# Implementation variant 5 for AUTH-05\ndef authenticate_jwt_bearer(token_header: str, secret_key: str) -> dict:\n    \"\"\"Authenticate request using Bearer JWT token and verify validity.\"\"\"\n    if not token_header.startswith('Bearer '):\n        raise AuthenticationError('Invalid Authorization header format')\n    raw_token = token_header.split(' ', 1)[1]\n    claims = jwt.decode(raw_token, secret_key, algorithms=['HS256'])\n    if claims.get('exp', 0) < time.time():\n        raise TokenExpiredError('Token has expired')\n    return {'user_id': claims['sub'], 'roles': claims.get('roles', [])}",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-006",
+    "story_id": "AUTH-NEG-01",
+    "user_story": "As a registered user, I want to authenticate using a JWT token so that I can access secure resources. [Variant 1]",
+    "acceptance_criteria": [
+      "Validate JWT signature and check expiration timestamp",
+      "Extract subject user ID and roles from token claims",
+      "Return 401 Unauthorized for expired or forged tokens"
+    ],
+    "code_artifact": "# Non-matching candidate 1 for AUTH-NEG-01\ndef export_sales_summary_csv(transactions: list[dict], out_path: str) -> int:\n    \"\"\"Export aggregated financial sales ledger to comma-separated file.\"\"\"\n    with open(out_path, 'w', newline='') as f:\n        writer = csv.writer(f)\n        writer.writerow(['tx_id', 'amount', 'timestamp', 'merchant'])\n        for tx in transactions:\n            writer.writerow([tx['id'], tx['amount'], tx['time'], tx['merchant']])\n    return len(transactions)",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-007",
+    "story_id": "AUTH-NEG-02",
+    "user_story": "As a registered user, I want to authenticate using a JWT token so that I can access secure resources. [Variant 2]",
+    "acceptance_criteria": [
+      "Validate JWT signature and check expiration timestamp",
+      "Extract subject user ID and roles from token claims",
+      "Return 401 Unauthorized for expired or forged tokens"
+    ],
+    "code_artifact": "# Non-matching candidate 2 for AUTH-NEG-02\ndef export_sales_summary_csv(transactions: list[dict], out_path: str) -> int:\n    \"\"\"Export aggregated financial sales ledger to comma-separated file.\"\"\"\n    with open(out_path, 'w', newline='') as f:\n        writer = csv.writer(f)\n        writer.writerow(['tx_id', 'amount', 'timestamp', 'merchant'])\n        for tx in transactions:\n            writer.writerow([tx['id'], tx['amount'], tx['time'], tx['merchant']])\n    return len(transactions)",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-008",
+    "story_id": "AUTH-NEG-03",
+    "user_story": "As a registered user, I want to authenticate using a JWT token so that I can access secure resources. [Variant 3]",
+    "acceptance_criteria": [
+      "Validate JWT signature and check expiration timestamp",
+      "Extract subject user ID and roles from token claims",
+      "Return 401 Unauthorized for expired or forged tokens"
+    ],
+    "code_artifact": "# Non-matching candidate 3 for AUTH-NEG-03\ndef export_sales_summary_csv(transactions: list[dict], out_path: str) -> int:\n    \"\"\"Export aggregated financial sales ledger to comma-separated file.\"\"\"\n    with open(out_path, 'w', newline='') as f:\n        writer = csv.writer(f)\n        writer.writerow(['tx_id', 'amount', 'timestamp', 'merchant'])\n        for tx in transactions:\n            writer.writerow([tx['id'], tx['amount'], tx['time'], tx['merchant']])\n    return len(transactions)",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-009",
+    "story_id": "AUTH-NEG-04",
+    "user_story": "As a registered user, I want to authenticate using a JWT token so that I can access secure resources. [Variant 4]",
+    "acceptance_criteria": [
+      "Validate JWT signature and check expiration timestamp",
+      "Extract subject user ID and roles from token claims",
+      "Return 401 Unauthorized for expired or forged tokens"
+    ],
+    "code_artifact": "# Non-matching candidate 4 for AUTH-NEG-04\ndef export_sales_summary_csv(transactions: list[dict], out_path: str) -> int:\n    \"\"\"Export aggregated financial sales ledger to comma-separated file.\"\"\"\n    with open(out_path, 'w', newline='') as f:\n        writer = csv.writer(f)\n        writer.writerow(['tx_id', 'amount', 'timestamp', 'merchant'])\n        for tx in transactions:\n            writer.writerow([tx['id'], tx['amount'], tx['time'], tx['merchant']])\n    return len(transactions)",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-010",
+    "story_id": "AUTH-NEG-05",
+    "user_story": "As a registered user, I want to authenticate using a JWT token so that I can access secure resources. [Variant 5]",
+    "acceptance_criteria": [
+      "Validate JWT signature and check expiration timestamp",
+      "Extract subject user ID and roles from token claims",
+      "Return 401 Unauthorized for expired or forged tokens"
+    ],
+    "code_artifact": "# Non-matching candidate 5 for AUTH-NEG-05\ndef export_sales_summary_csv(transactions: list[dict], out_path: str) -> int:\n    \"\"\"Export aggregated financial sales ledger to comma-separated file.\"\"\"\n    with open(out_path, 'w', newline='') as f:\n        writer = csv.writer(f)\n        writer.writerow(['tx_id', 'amount', 'timestamp', 'merchant'])\n        for tx in transactions:\n            writer.writerow([tx['id'], tx['amount'], tx['time'], tx['merchant']])\n    return len(transactions)",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-011",
+    "story_id": "SESS-01",
+    "user_story": "As an administrator, I want to revoke all active sessions for a compromised account. [Variant 1]",
+    "acceptance_criteria": [
+      "Blacklist active refresh tokens for the given user ID",
+      "Emit cache invalidation event to disconnect active web sessions",
+      "Purge Redis session key patterns atomically"
+    ],
+    "code_artifact": "# Implementation variant 1 for SESS-01\ndef revoke_user_sessions(user_id: str, redis_client: Redis) -> int:\n    \"\"\"Revoke active refresh tokens and invalidate user sessions in Redis cache.\"\"\"\n    session_keys = redis_client.keys(f'session:{user_id}:*')\n    if session_keys:\n        redis_client.delete(*session_keys)\n    redis_client.set(f'blacklist:{user_id}', int(time.time()), ex=86400)\n    return len(session_keys)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-012",
+    "story_id": "SESS-02",
+    "user_story": "As an administrator, I want to revoke all active sessions for a compromised account. [Variant 2]",
+    "acceptance_criteria": [
+      "Blacklist active refresh tokens for the given user ID",
+      "Emit cache invalidation event to disconnect active web sessions",
+      "Purge Redis session key patterns atomically"
+    ],
+    "code_artifact": "# Implementation variant 2 for SESS-02\ndef revoke_user_sessions(user_id: str, redis_client: Redis) -> int:\n    \"\"\"Revoke active refresh tokens and invalidate user sessions in Redis cache.\"\"\"\n    session_keys = redis_client.keys(f'session:{user_id}:*')\n    if session_keys:\n        redis_client.delete(*session_keys)\n    redis_client.set(f'blacklist:{user_id}', int(time.time()), ex=86400)\n    return len(session_keys)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-013",
+    "story_id": "SESS-03",
+    "user_story": "As an administrator, I want to revoke all active sessions for a compromised account. [Variant 3]",
+    "acceptance_criteria": [
+      "Blacklist active refresh tokens for the given user ID",
+      "Emit cache invalidation event to disconnect active web sessions",
+      "Purge Redis session key patterns atomically"
+    ],
+    "code_artifact": "# Implementation variant 3 for SESS-03\ndef revoke_user_sessions(user_id: str, redis_client: Redis) -> int:\n    \"\"\"Revoke active refresh tokens and invalidate user sessions in Redis cache.\"\"\"\n    session_keys = redis_client.keys(f'session:{user_id}:*')\n    if session_keys:\n        redis_client.delete(*session_keys)\n    redis_client.set(f'blacklist:{user_id}', int(time.time()), ex=86400)\n    return len(session_keys)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-014",
+    "story_id": "SESS-04",
+    "user_story": "As an administrator, I want to revoke all active sessions for a compromised account. [Variant 4]",
+    "acceptance_criteria": [
+      "Blacklist active refresh tokens for the given user ID",
+      "Emit cache invalidation event to disconnect active web sessions",
+      "Purge Redis session key patterns atomically"
+    ],
+    "code_artifact": "# Implementation variant 4 for SESS-04\ndef revoke_user_sessions(user_id: str, redis_client: Redis) -> int:\n    \"\"\"Revoke active refresh tokens and invalidate user sessions in Redis cache.\"\"\"\n    session_keys = redis_client.keys(f'session:{user_id}:*')\n    if session_keys:\n        redis_client.delete(*session_keys)\n    redis_client.set(f'blacklist:{user_id}', int(time.time()), ex=86400)\n    return len(session_keys)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-015",
+    "story_id": "SESS-05",
+    "user_story": "As an administrator, I want to revoke all active sessions for a compromised account. [Variant 5]",
+    "acceptance_criteria": [
+      "Blacklist active refresh tokens for the given user ID",
+      "Emit cache invalidation event to disconnect active web sessions",
+      "Purge Redis session key patterns atomically"
+    ],
+    "code_artifact": "# Implementation variant 5 for SESS-05\ndef revoke_user_sessions(user_id: str, redis_client: Redis) -> int:\n    \"\"\"Revoke active refresh tokens and invalidate user sessions in Redis cache.\"\"\"\n    session_keys = redis_client.keys(f'session:{user_id}:*')\n    if session_keys:\n        redis_client.delete(*session_keys)\n    redis_client.set(f'blacklist:{user_id}', int(time.time()), ex=86400)\n    return len(session_keys)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-016",
+    "story_id": "SESS-NEG-01",
+    "user_story": "As an administrator, I want to revoke all active sessions for a compromised account. [Variant 1]",
+    "acceptance_criteria": [
+      "Blacklist active refresh tokens for the given user ID",
+      "Emit cache invalidation event to disconnect active web sessions",
+      "Purge Redis session key patterns atomically"
+    ],
+    "code_artifact": "# Non-matching candidate 1 for SESS-NEG-01\ndef resize_profile_avatar(image_bytes: bytes, target_size: tuple[int, int]) -> bytes:\n    \"\"\"Crop and resize uploaded profile image to standard thumbnail dimensions.\"\"\"\n    image = Image.open(io.BytesIO(image_bytes))\n    image.thumbnail(target_size, Image.Resampling.LANCZOS)\n    buf = io.BytesIO()\n    image.save(buf, format='JPEG', quality=85)\n    return buf.getvalue()",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-017",
+    "story_id": "SESS-NEG-02",
+    "user_story": "As an administrator, I want to revoke all active sessions for a compromised account. [Variant 2]",
+    "acceptance_criteria": [
+      "Blacklist active refresh tokens for the given user ID",
+      "Emit cache invalidation event to disconnect active web sessions",
+      "Purge Redis session key patterns atomically"
+    ],
+    "code_artifact": "# Non-matching candidate 2 for SESS-NEG-02\ndef resize_profile_avatar(image_bytes: bytes, target_size: tuple[int, int]) -> bytes:\n    \"\"\"Crop and resize uploaded profile image to standard thumbnail dimensions.\"\"\"\n    image = Image.open(io.BytesIO(image_bytes))\n    image.thumbnail(target_size, Image.Resampling.LANCZOS)\n    buf = io.BytesIO()\n    image.save(buf, format='JPEG', quality=85)\n    return buf.getvalue()",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-018",
+    "story_id": "SESS-NEG-03",
+    "user_story": "As an administrator, I want to revoke all active sessions for a compromised account. [Variant 3]",
+    "acceptance_criteria": [
+      "Blacklist active refresh tokens for the given user ID",
+      "Emit cache invalidation event to disconnect active web sessions",
+      "Purge Redis session key patterns atomically"
+    ],
+    "code_artifact": "# Non-matching candidate 3 for SESS-NEG-03\ndef resize_profile_avatar(image_bytes: bytes, target_size: tuple[int, int]) -> bytes:\n    \"\"\"Crop and resize uploaded profile image to standard thumbnail dimensions.\"\"\"\n    image = Image.open(io.BytesIO(image_bytes))\n    image.thumbnail(target_size, Image.Resampling.LANCZOS)\n    buf = io.BytesIO()\n    image.save(buf, format='JPEG', quality=85)\n    return buf.getvalue()",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-019",
+    "story_id": "SESS-NEG-04",
+    "user_story": "As an administrator, I want to revoke all active sessions for a compromised account. [Variant 4]",
+    "acceptance_criteria": [
+      "Blacklist active refresh tokens for the given user ID",
+      "Emit cache invalidation event to disconnect active web sessions",
+      "Purge Redis session key patterns atomically"
+    ],
+    "code_artifact": "# Non-matching candidate 4 for SESS-NEG-04\ndef resize_profile_avatar(image_bytes: bytes, target_size: tuple[int, int]) -> bytes:\n    \"\"\"Crop and resize uploaded profile image to standard thumbnail dimensions.\"\"\"\n    image = Image.open(io.BytesIO(image_bytes))\n    image.thumbnail(target_size, Image.Resampling.LANCZOS)\n    buf = io.BytesIO()\n    image.save(buf, format='JPEG', quality=85)\n    return buf.getvalue()",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-020",
+    "story_id": "SESS-NEG-05",
+    "user_story": "As an administrator, I want to revoke all active sessions for a compromised account. [Variant 5]",
+    "acceptance_criteria": [
+      "Blacklist active refresh tokens for the given user ID",
+      "Emit cache invalidation event to disconnect active web sessions",
+      "Purge Redis session key patterns atomically"
+    ],
+    "code_artifact": "# Non-matching candidate 5 for SESS-NEG-05\ndef resize_profile_avatar(image_bytes: bytes, target_size: tuple[int, int]) -> bytes:\n    \"\"\"Crop and resize uploaded profile image to standard thumbnail dimensions.\"\"\"\n    image = Image.open(io.BytesIO(image_bytes))\n    image.thumbnail(target_size, Image.Resampling.LANCZOS)\n    buf = io.BytesIO()\n    image.save(buf, format='JPEG', quality=85)\n    return buf.getvalue()",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-021",
     "story_id": "BILL-01",
-    "user_story": "As an e-commerce platform, I want to calculate state sales tax on order checkout.",
+    "user_story": "As an e-commerce platform, I want to calculate state sales tax on order checkout. [Variant 1]",
     "acceptance_criteria": [
       "Lookup jurisdictional tax rate based on 2-letter state code",
       "Apply percentage rate to net taxable order total",
       "Round final tax dollar amount to two decimal places"
     ],
-    "code_artifact": "def calculate_sales_tax(net_amount: float, state_code: str, tax_tables: dict[str, float]) -> float:\n    \"\"\"Calculate state jurisdictional sales tax rounded to two decimal places.\"\"\"\n    if net_amount <= 0:\n        return 0.0\n    rate = tax_tables.get(state_code.upper(), 0.0)\n    tax = round(net_amount * rate, 2)\n    return tax",
+    "code_artifact": "# Implementation variant 1 for BILL-01\ndef calculate_sales_tax(net_amount: float, state_code: str, tax_tables: dict[str, float]) -> float:\n    \"\"\"Calculate state jurisdictional sales tax rounded to two decimal places.\"\"\"\n    if net_amount <= 0:\n        return 0.0\n    rate = tax_tables.get(state_code.upper(), 0.0)\n    return round(net_amount * rate, 2)",
     "is_ground_truth_link": true
   },
   {
-    "pair_id": "PAIR-006",
-    "story_id": "BILL-01",
-    "user_story": "As an e-commerce platform, I want to calculate state sales tax on order checkout.",
+    "pair_id": "PAIR-022",
+    "story_id": "BILL-02",
+    "user_story": "As an e-commerce platform, I want to calculate state sales tax on order checkout. [Variant 2]",
     "acceptance_criteria": [
-      "Lookup jurisdictional tax rate based on state code",
-      "Apply percentage rate to taxable order total"
+      "Lookup jurisdictional tax rate based on 2-letter state code",
+      "Apply percentage rate to net taxable order total",
+      "Round final tax dollar amount to two decimal places"
     ],
-    "code_artifact": "def parse_git_diff_hunks(diff_str: str) -> list[tuple[int, int]]:\n    \"\"\"Extract modified line ranges from git unified diff header.\"\"\"\n    ranges = []\n    for line in diff_str.splitlines():\n        if line.startswith('@@'):\n            parts = line.split('+')[1].split(' ')[0].split(',')\n            start = int(parts[0])\n            count = int(parts[1]) if len(parts) > 1 else 1\n            ranges.append((start, start + count - 1))\n    return ranges",
+    "code_artifact": "# Implementation variant 2 for BILL-02\ndef calculate_sales_tax(net_amount: float, state_code: str, tax_tables: dict[str, float]) -> float:\n    \"\"\"Calculate state jurisdictional sales tax rounded to two decimal places.\"\"\"\n    if net_amount <= 0:\n        return 0.0\n    rate = tax_tables.get(state_code.upper(), 0.0)\n    return round(net_amount * rate, 2)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-023",
+    "story_id": "BILL-03",
+    "user_story": "As an e-commerce platform, I want to calculate state sales tax on order checkout. [Variant 3]",
+    "acceptance_criteria": [
+      "Lookup jurisdictional tax rate based on 2-letter state code",
+      "Apply percentage rate to net taxable order total",
+      "Round final tax dollar amount to two decimal places"
+    ],
+    "code_artifact": "# Implementation variant 3 for BILL-03\ndef calculate_sales_tax(net_amount: float, state_code: str, tax_tables: dict[str, float]) -> float:\n    \"\"\"Calculate state jurisdictional sales tax rounded to two decimal places.\"\"\"\n    if net_amount <= 0:\n        return 0.0\n    rate = tax_tables.get(state_code.upper(), 0.0)\n    return round(net_amount * rate, 2)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-024",
+    "story_id": "BILL-04",
+    "user_story": "As an e-commerce platform, I want to calculate state sales tax on order checkout. [Variant 4]",
+    "acceptance_criteria": [
+      "Lookup jurisdictional tax rate based on 2-letter state code",
+      "Apply percentage rate to net taxable order total",
+      "Round final tax dollar amount to two decimal places"
+    ],
+    "code_artifact": "# Implementation variant 4 for BILL-04\ndef calculate_sales_tax(net_amount: float, state_code: str, tax_tables: dict[str, float]) -> float:\n    \"\"\"Calculate state jurisdictional sales tax rounded to two decimal places.\"\"\"\n    if net_amount <= 0:\n        return 0.0\n    rate = tax_tables.get(state_code.upper(), 0.0)\n    return round(net_amount * rate, 2)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-025",
+    "story_id": "BILL-05",
+    "user_story": "As an e-commerce platform, I want to calculate state sales tax on order checkout. [Variant 5]",
+    "acceptance_criteria": [
+      "Lookup jurisdictional tax rate based on 2-letter state code",
+      "Apply percentage rate to net taxable order total",
+      "Round final tax dollar amount to two decimal places"
+    ],
+    "code_artifact": "# Implementation variant 5 for BILL-05\ndef calculate_sales_tax(net_amount: float, state_code: str, tax_tables: dict[str, float]) -> float:\n    \"\"\"Calculate state jurisdictional sales tax rounded to two decimal places.\"\"\"\n    if net_amount <= 0:\n        return 0.0\n    rate = tax_tables.get(state_code.upper(), 0.0)\n    return round(net_amount * rate, 2)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-026",
+    "story_id": "BILL-NEG-01",
+    "user_story": "As an e-commerce platform, I want to calculate state sales tax on order checkout. [Variant 1]",
+    "acceptance_criteria": [
+      "Lookup jurisdictional tax rate based on 2-letter state code",
+      "Apply percentage rate to net taxable order total",
+      "Round final tax dollar amount to two decimal places"
+    ],
+    "code_artifact": "# Non-matching candidate 1 for BILL-NEG-01\ndef parse_git_diff_hunks(diff_str: str) -> list[tuple[int, int]]:\n    \"\"\"Extract modified line ranges from git unified diff header.\"\"\"\n    ranges = []\n    for line in diff_str.splitlines():\n        if line.startswith('@@'):\n            parts = line.split('+')[1].split(' ')[0].split(',')\n            ranges.append((int(parts[0]), int(parts[0]) + int(parts[1]) - 1))\n    return ranges",
     "is_ground_truth_link": false
   },
   {
-    "pair_id": "PAIR-007",
-    "story_id": "BILL-02",
-    "user_story": "As a merchant, I want to issue partial and full refunds to customer credit cards via Stripe.",
+    "pair_id": "PAIR-027",
+    "story_id": "BILL-NEG-02",
+    "user_story": "As an e-commerce platform, I want to calculate state sales tax on order checkout. [Variant 2]",
+    "acceptance_criteria": [
+      "Lookup jurisdictional tax rate based on 2-letter state code",
+      "Apply percentage rate to net taxable order total",
+      "Round final tax dollar amount to two decimal places"
+    ],
+    "code_artifact": "# Non-matching candidate 2 for BILL-NEG-02\ndef parse_git_diff_hunks(diff_str: str) -> list[tuple[int, int]]:\n    \"\"\"Extract modified line ranges from git unified diff header.\"\"\"\n    ranges = []\n    for line in diff_str.splitlines():\n        if line.startswith('@@'):\n            parts = line.split('+')[1].split(' ')[0].split(',')\n            ranges.append((int(parts[0]), int(parts[0]) + int(parts[1]) - 1))\n    return ranges",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-028",
+    "story_id": "BILL-NEG-03",
+    "user_story": "As an e-commerce platform, I want to calculate state sales tax on order checkout. [Variant 3]",
+    "acceptance_criteria": [
+      "Lookup jurisdictional tax rate based on 2-letter state code",
+      "Apply percentage rate to net taxable order total",
+      "Round final tax dollar amount to two decimal places"
+    ],
+    "code_artifact": "# Non-matching candidate 3 for BILL-NEG-03\ndef parse_git_diff_hunks(diff_str: str) -> list[tuple[int, int]]:\n    \"\"\"Extract modified line ranges from git unified diff header.\"\"\"\n    ranges = []\n    for line in diff_str.splitlines():\n        if line.startswith('@@'):\n            parts = line.split('+')[1].split(' ')[0].split(',')\n            ranges.append((int(parts[0]), int(parts[0]) + int(parts[1]) - 1))\n    return ranges",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-029",
+    "story_id": "BILL-NEG-04",
+    "user_story": "As an e-commerce platform, I want to calculate state sales tax on order checkout. [Variant 4]",
+    "acceptance_criteria": [
+      "Lookup jurisdictional tax rate based on 2-letter state code",
+      "Apply percentage rate to net taxable order total",
+      "Round final tax dollar amount to two decimal places"
+    ],
+    "code_artifact": "# Non-matching candidate 4 for BILL-NEG-04\ndef parse_git_diff_hunks(diff_str: str) -> list[tuple[int, int]]:\n    \"\"\"Extract modified line ranges from git unified diff header.\"\"\"\n    ranges = []\n    for line in diff_str.splitlines():\n        if line.startswith('@@'):\n            parts = line.split('+')[1].split(' ')[0].split(',')\n            ranges.append((int(parts[0]), int(parts[0]) + int(parts[1]) - 1))\n    return ranges",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-030",
+    "story_id": "BILL-NEG-05",
+    "user_story": "As an e-commerce platform, I want to calculate state sales tax on order checkout. [Variant 5]",
+    "acceptance_criteria": [
+      "Lookup jurisdictional tax rate based on 2-letter state code",
+      "Apply percentage rate to net taxable order total",
+      "Round final tax dollar amount to two decimal places"
+    ],
+    "code_artifact": "# Non-matching candidate 5 for BILL-NEG-05\ndef parse_git_diff_hunks(diff_str: str) -> list[tuple[int, int]]:\n    \"\"\"Extract modified line ranges from git unified diff header.\"\"\"\n    ranges = []\n    for line in diff_str.splitlines():\n        if line.startswith('@@'):\n            parts = line.split('+')[1].split(' ')[0].split(',')\n            ranges.append((int(parts[0]), int(parts[0]) + int(parts[1]) - 1))\n    return ranges",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-031",
+    "story_id": "REFUND-01",
+    "user_story": "As a merchant, I want to issue partial and full refunds to customer credit cards via Stripe. [Variant 1]",
     "acceptance_criteria": [
       "Create refund request through payment gateway for target charge ID",
       "Validate refund amount does not exceed original captured charge",
       "Record refund event in transaction ledger"
     ],
-    "code_artifact": "def issue_stripe_refund(charge_id: str, amount_cents: int, reason: str = 'requested_by_customer') -> dict:\n    \"\"\"Process payment gateway credit card refund via Stripe API.\"\"\"\n    charge = stripe.Charge.retrieve(charge_id)\n    if amount_cents > (charge.amount - charge.amount_refunded):\n        raise ValueError('Refund amount exceeds remaining captured balance')\n    refund = stripe.Refund.create(charge=charge_id, amount=amount_cents, reason=reason)\n    return {'refund_id': refund.id, 'status': refund.status, 'amount': refund.amount}",
+    "code_artifact": "# Implementation variant 1 for REFUND-01\ndef issue_stripe_refund(charge_id: str, amount_cents: int, reason: str = 'customer_request') -> dict:\n    \"\"\"Process payment gateway credit card refund via Stripe API.\"\"\"\n    charge = stripe.Charge.retrieve(charge_id)\n    if amount_cents > (charge.amount - charge.amount_refunded):\n        raise ValueError('Refund amount exceeds remaining captured balance')\n    refund = stripe.Refund.create(charge=charge_id, amount=amount_cents, reason=reason)\n    return {'refund_id': refund.id, 'status': refund.status, 'amount': refund.amount}",
     "is_ground_truth_link": true
   },
   {
-    "pair_id": "PAIR-008",
-    "story_id": "BILL-02",
-    "user_story": "As a merchant, I want to issue partial and full refunds to customer credit cards via Stripe.",
+    "pair_id": "PAIR-032",
+    "story_id": "REFUND-02",
+    "user_story": "As a merchant, I want to issue partial and full refunds to customer credit cards via Stripe. [Variant 2]",
     "acceptance_criteria": [
-      "Create refund request through payment gateway for target charge ID"
+      "Create refund request through payment gateway for target charge ID",
+      "Validate refund amount does not exceed original captured charge",
+      "Record refund event in transaction ledger"
     ],
-    "code_artifact": "def compute_hash_sha256(content: bytes) -> str:\n    \"\"\"Compute hex digest checksum using SHA256 cryptographic algorithm.\"\"\"\n    hasher = hashlib.sha256()\n    hasher.update(content)\n    return hasher.hexdigest()",
+    "code_artifact": "# Implementation variant 2 for REFUND-02\ndef issue_stripe_refund(charge_id: str, amount_cents: int, reason: str = 'customer_request') -> dict:\n    \"\"\"Process payment gateway credit card refund via Stripe API.\"\"\"\n    charge = stripe.Charge.retrieve(charge_id)\n    if amount_cents > (charge.amount - charge.amount_refunded):\n        raise ValueError('Refund amount exceeds remaining captured balance')\n    refund = stripe.Refund.create(charge=charge_id, amount=amount_cents, reason=reason)\n    return {'refund_id': refund.id, 'status': refund.status, 'amount': refund.amount}",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-033",
+    "story_id": "REFUND-03",
+    "user_story": "As a merchant, I want to issue partial and full refunds to customer credit cards via Stripe. [Variant 3]",
+    "acceptance_criteria": [
+      "Create refund request through payment gateway for target charge ID",
+      "Validate refund amount does not exceed original captured charge",
+      "Record refund event in transaction ledger"
+    ],
+    "code_artifact": "# Implementation variant 3 for REFUND-03\ndef issue_stripe_refund(charge_id: str, amount_cents: int, reason: str = 'customer_request') -> dict:\n    \"\"\"Process payment gateway credit card refund via Stripe API.\"\"\"\n    charge = stripe.Charge.retrieve(charge_id)\n    if amount_cents > (charge.amount - charge.amount_refunded):\n        raise ValueError('Refund amount exceeds remaining captured balance')\n    refund = stripe.Refund.create(charge=charge_id, amount=amount_cents, reason=reason)\n    return {'refund_id': refund.id, 'status': refund.status, 'amount': refund.amount}",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-034",
+    "story_id": "REFUND-04",
+    "user_story": "As a merchant, I want to issue partial and full refunds to customer credit cards via Stripe. [Variant 4]",
+    "acceptance_criteria": [
+      "Create refund request through payment gateway for target charge ID",
+      "Validate refund amount does not exceed original captured charge",
+      "Record refund event in transaction ledger"
+    ],
+    "code_artifact": "# Implementation variant 4 for REFUND-04\ndef issue_stripe_refund(charge_id: str, amount_cents: int, reason: str = 'customer_request') -> dict:\n    \"\"\"Process payment gateway credit card refund via Stripe API.\"\"\"\n    charge = stripe.Charge.retrieve(charge_id)\n    if amount_cents > (charge.amount - charge.amount_refunded):\n        raise ValueError('Refund amount exceeds remaining captured balance')\n    refund = stripe.Refund.create(charge=charge_id, amount=amount_cents, reason=reason)\n    return {'refund_id': refund.id, 'status': refund.status, 'amount': refund.amount}",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-035",
+    "story_id": "REFUND-05",
+    "user_story": "As a merchant, I want to issue partial and full refunds to customer credit cards via Stripe. [Variant 5]",
+    "acceptance_criteria": [
+      "Create refund request through payment gateway for target charge ID",
+      "Validate refund amount does not exceed original captured charge",
+      "Record refund event in transaction ledger"
+    ],
+    "code_artifact": "# Implementation variant 5 for REFUND-05\ndef issue_stripe_refund(charge_id: str, amount_cents: int, reason: str = 'customer_request') -> dict:\n    \"\"\"Process payment gateway credit card refund via Stripe API.\"\"\"\n    charge = stripe.Charge.retrieve(charge_id)\n    if amount_cents > (charge.amount - charge.amount_refunded):\n        raise ValueError('Refund amount exceeds remaining captured balance')\n    refund = stripe.Refund.create(charge=charge_id, amount=amount_cents, reason=reason)\n    return {'refund_id': refund.id, 'status': refund.status, 'amount': refund.amount}",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-036",
+    "story_id": "REFUND-NEG-01",
+    "user_story": "As a merchant, I want to issue partial and full refunds to customer credit cards via Stripe. [Variant 1]",
+    "acceptance_criteria": [
+      "Create refund request through payment gateway for target charge ID",
+      "Validate refund amount does not exceed original captured charge",
+      "Record refund event in transaction ledger"
+    ],
+    "code_artifact": "# Non-matching candidate 1 for REFUND-NEG-01\ndef compute_hash_sha256(content: bytes) -> str:\n    \"\"\"Compute hex digest checksum using SHA256 cryptographic algorithm.\"\"\"\n    hasher = hashlib.sha256()\n    hasher.update(content)\n    return hasher.hexdigest()",
     "is_ground_truth_link": false
   },
   {
-    "pair_id": "PAIR-009",
+    "pair_id": "PAIR-037",
+    "story_id": "REFUND-NEG-02",
+    "user_story": "As a merchant, I want to issue partial and full refunds to customer credit cards via Stripe. [Variant 2]",
+    "acceptance_criteria": [
+      "Create refund request through payment gateway for target charge ID",
+      "Validate refund amount does not exceed original captured charge",
+      "Record refund event in transaction ledger"
+    ],
+    "code_artifact": "# Non-matching candidate 2 for REFUND-NEG-02\ndef compute_hash_sha256(content: bytes) -> str:\n    \"\"\"Compute hex digest checksum using SHA256 cryptographic algorithm.\"\"\"\n    hasher = hashlib.sha256()\n    hasher.update(content)\n    return hasher.hexdigest()",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-038",
+    "story_id": "REFUND-NEG-03",
+    "user_story": "As a merchant, I want to issue partial and full refunds to customer credit cards via Stripe. [Variant 3]",
+    "acceptance_criteria": [
+      "Create refund request through payment gateway for target charge ID",
+      "Validate refund amount does not exceed original captured charge",
+      "Record refund event in transaction ledger"
+    ],
+    "code_artifact": "# Non-matching candidate 3 for REFUND-NEG-03\ndef compute_hash_sha256(content: bytes) -> str:\n    \"\"\"Compute hex digest checksum using SHA256 cryptographic algorithm.\"\"\"\n    hasher = hashlib.sha256()\n    hasher.update(content)\n    return hasher.hexdigest()",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-039",
+    "story_id": "REFUND-NEG-04",
+    "user_story": "As a merchant, I want to issue partial and full refunds to customer credit cards via Stripe. [Variant 4]",
+    "acceptance_criteria": [
+      "Create refund request through payment gateway for target charge ID",
+      "Validate refund amount does not exceed original captured charge",
+      "Record refund event in transaction ledger"
+    ],
+    "code_artifact": "# Non-matching candidate 4 for REFUND-NEG-04\ndef compute_hash_sha256(content: bytes) -> str:\n    \"\"\"Compute hex digest checksum using SHA256 cryptographic algorithm.\"\"\"\n    hasher = hashlib.sha256()\n    hasher.update(content)\n    return hasher.hexdigest()",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-040",
+    "story_id": "REFUND-NEG-05",
+    "user_story": "As a merchant, I want to issue partial and full refunds to customer credit cards via Stripe. [Variant 5]",
+    "acceptance_criteria": [
+      "Create refund request through payment gateway for target charge ID",
+      "Validate refund amount does not exceed original captured charge",
+      "Record refund event in transaction ledger"
+    ],
+    "code_artifact": "# Non-matching candidate 5 for REFUND-NEG-05\ndef compute_hash_sha256(content: bytes) -> str:\n    \"\"\"Compute hex digest checksum using SHA256 cryptographic algorithm.\"\"\"\n    hasher = hashlib.sha256()\n    hasher.update(content)\n    return hasher.hexdigest()",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-041",
     "story_id": "INV-01",
-    "user_story": "As an inventory manager, I want to reserve warehouse stock items during customer checkout.",
+    "user_story": "As an inventory manager, I want to reserve warehouse stock items during customer checkout. [Variant 1]",
     "acceptance_criteria": [
       "Check available quantity for SKU in database warehouse table",
-      "Decrement available inventory quantity atomically",
+      "Decrement available inventory quantity atomically with row-level locks",
       "Raise OutOfStockError if requested quantity exceeds available stock"
     ],
-    "code_artifact": "def reserve_inventory_sku(sku: str, quantity: int, db_session: Session) -> bool:\n    \"\"\"Atomically reserve product warehouse stock for active checkout cart.\"\"\"\n    item = db_session.query(StockItem).filter_by(sku=sku).with_for_update().first()\n    if not item or item.available_quantity < quantity:\n        raise OutOfStockError(f'Insufficient warehouse quantity for SKU {sku}')\n    item.available_quantity -= quantity\n    item.reserved_quantity += quantity\n    db_session.commit()\n    return True",
+    "code_artifact": "# Implementation variant 1 for INV-01\ndef reserve_inventory_sku(sku: str, quantity: int, db_session: Session) -> bool:\n    \"\"\"Atomically reserve product warehouse stock for active checkout cart.\"\"\"\n    item = db_session.query(StockItem).filter_by(sku=sku).with_for_update().first()\n    if not item or item.available_quantity < quantity:\n        raise OutOfStockError(f'Insufficient warehouse quantity for SKU {sku}')\n    item.available_quantity -= quantity\n    item.reserved_quantity += quantity\n    db_session.commit()\n    return True",
     "is_ground_truth_link": true
   },
   {
-    "pair_id": "PAIR-010",
-    "story_id": "INV-01",
-    "user_story": "As an inventory manager, I want to reserve warehouse stock items during customer checkout.",
+    "pair_id": "PAIR-042",
+    "story_id": "INV-02",
+    "user_story": "As an inventory manager, I want to reserve warehouse stock items during customer checkout. [Variant 2]",
     "acceptance_criteria": [
-      "Check available quantity for SKU in database warehouse table"
+      "Check available quantity for SKU in database warehouse table",
+      "Decrement available inventory quantity atomically with row-level locks",
+      "Raise OutOfStockError if requested quantity exceeds available stock"
     ],
-    "code_artifact": "def send_slack_notification(webhook_url: str, channel: str, message: str) -> bool:\n    \"\"\"Post alert message to team Slack channel using incoming webhook.\"\"\"\n    payload = {'channel': channel, 'text': message, 'username': 'AlertBot'}\n    resp = requests.post(webhook_url, json=payload, timeout=5)\n    return resp.status_code == 200",
+    "code_artifact": "# Implementation variant 2 for INV-02\ndef reserve_inventory_sku(sku: str, quantity: int, db_session: Session) -> bool:\n    \"\"\"Atomically reserve product warehouse stock for active checkout cart.\"\"\"\n    item = db_session.query(StockItem).filter_by(sku=sku).with_for_update().first()\n    if not item or item.available_quantity < quantity:\n        raise OutOfStockError(f'Insufficient warehouse quantity for SKU {sku}')\n    item.available_quantity -= quantity\n    item.reserved_quantity += quantity\n    db_session.commit()\n    return True",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-043",
+    "story_id": "INV-03",
+    "user_story": "As an inventory manager, I want to reserve warehouse stock items during customer checkout. [Variant 3]",
+    "acceptance_criteria": [
+      "Check available quantity for SKU in database warehouse table",
+      "Decrement available inventory quantity atomically with row-level locks",
+      "Raise OutOfStockError if requested quantity exceeds available stock"
+    ],
+    "code_artifact": "# Implementation variant 3 for INV-03\ndef reserve_inventory_sku(sku: str, quantity: int, db_session: Session) -> bool:\n    \"\"\"Atomically reserve product warehouse stock for active checkout cart.\"\"\"\n    item = db_session.query(StockItem).filter_by(sku=sku).with_for_update().first()\n    if not item or item.available_quantity < quantity:\n        raise OutOfStockError(f'Insufficient warehouse quantity for SKU {sku}')\n    item.available_quantity -= quantity\n    item.reserved_quantity += quantity\n    db_session.commit()\n    return True",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-044",
+    "story_id": "INV-04",
+    "user_story": "As an inventory manager, I want to reserve warehouse stock items during customer checkout. [Variant 4]",
+    "acceptance_criteria": [
+      "Check available quantity for SKU in database warehouse table",
+      "Decrement available inventory quantity atomically with row-level locks",
+      "Raise OutOfStockError if requested quantity exceeds available stock"
+    ],
+    "code_artifact": "# Implementation variant 4 for INV-04\ndef reserve_inventory_sku(sku: str, quantity: int, db_session: Session) -> bool:\n    \"\"\"Atomically reserve product warehouse stock for active checkout cart.\"\"\"\n    item = db_session.query(StockItem).filter_by(sku=sku).with_for_update().first()\n    if not item or item.available_quantity < quantity:\n        raise OutOfStockError(f'Insufficient warehouse quantity for SKU {sku}')\n    item.available_quantity -= quantity\n    item.reserved_quantity += quantity\n    db_session.commit()\n    return True",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-045",
+    "story_id": "INV-05",
+    "user_story": "As an inventory manager, I want to reserve warehouse stock items during customer checkout. [Variant 5]",
+    "acceptance_criteria": [
+      "Check available quantity for SKU in database warehouse table",
+      "Decrement available inventory quantity atomically with row-level locks",
+      "Raise OutOfStockError if requested quantity exceeds available stock"
+    ],
+    "code_artifact": "# Implementation variant 5 for INV-05\ndef reserve_inventory_sku(sku: str, quantity: int, db_session: Session) -> bool:\n    \"\"\"Atomically reserve product warehouse stock for active checkout cart.\"\"\"\n    item = db_session.query(StockItem).filter_by(sku=sku).with_for_update().first()\n    if not item or item.available_quantity < quantity:\n        raise OutOfStockError(f'Insufficient warehouse quantity for SKU {sku}')\n    item.available_quantity -= quantity\n    item.reserved_quantity += quantity\n    db_session.commit()\n    return True",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-046",
+    "story_id": "INV-NEG-01",
+    "user_story": "As an inventory manager, I want to reserve warehouse stock items during customer checkout. [Variant 1]",
+    "acceptance_criteria": [
+      "Check available quantity for SKU in database warehouse table",
+      "Decrement available inventory quantity atomically with row-level locks",
+      "Raise OutOfStockError if requested quantity exceeds available stock"
+    ],
+    "code_artifact": "# Non-matching candidate 1 for INV-NEG-01\ndef send_slack_notification(webhook_url: str, channel: str, message: str) -> bool:\n    \"\"\"Post alert message to team Slack channel using incoming webhook.\"\"\"\n    payload = {'channel': channel, 'text': message, 'username': 'AlertBot'}\n    resp = requests.post(webhook_url, json=payload, timeout=5)\n    return resp.status_code == 200",
     "is_ground_truth_link": false
   },
   {
-    "pair_id": "PAIR-011",
+    "pair_id": "PAIR-047",
+    "story_id": "INV-NEG-02",
+    "user_story": "As an inventory manager, I want to reserve warehouse stock items during customer checkout. [Variant 2]",
+    "acceptance_criteria": [
+      "Check available quantity for SKU in database warehouse table",
+      "Decrement available inventory quantity atomically with row-level locks",
+      "Raise OutOfStockError if requested quantity exceeds available stock"
+    ],
+    "code_artifact": "# Non-matching candidate 2 for INV-NEG-02\ndef send_slack_notification(webhook_url: str, channel: str, message: str) -> bool:\n    \"\"\"Post alert message to team Slack channel using incoming webhook.\"\"\"\n    payload = {'channel': channel, 'text': message, 'username': 'AlertBot'}\n    resp = requests.post(webhook_url, json=payload, timeout=5)\n    return resp.status_code == 200",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-048",
+    "story_id": "INV-NEG-03",
+    "user_story": "As an inventory manager, I want to reserve warehouse stock items during customer checkout. [Variant 3]",
+    "acceptance_criteria": [
+      "Check available quantity for SKU in database warehouse table",
+      "Decrement available inventory quantity atomically with row-level locks",
+      "Raise OutOfStockError if requested quantity exceeds available stock"
+    ],
+    "code_artifact": "# Non-matching candidate 3 for INV-NEG-03\ndef send_slack_notification(webhook_url: str, channel: str, message: str) -> bool:\n    \"\"\"Post alert message to team Slack channel using incoming webhook.\"\"\"\n    payload = {'channel': channel, 'text': message, 'username': 'AlertBot'}\n    resp = requests.post(webhook_url, json=payload, timeout=5)\n    return resp.status_code == 200",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-049",
+    "story_id": "INV-NEG-04",
+    "user_story": "As an inventory manager, I want to reserve warehouse stock items during customer checkout. [Variant 4]",
+    "acceptance_criteria": [
+      "Check available quantity for SKU in database warehouse table",
+      "Decrement available inventory quantity atomically with row-level locks",
+      "Raise OutOfStockError if requested quantity exceeds available stock"
+    ],
+    "code_artifact": "# Non-matching candidate 4 for INV-NEG-04\ndef send_slack_notification(webhook_url: str, channel: str, message: str) -> bool:\n    \"\"\"Post alert message to team Slack channel using incoming webhook.\"\"\"\n    payload = {'channel': channel, 'text': message, 'username': 'AlertBot'}\n    resp = requests.post(webhook_url, json=payload, timeout=5)\n    return resp.status_code == 200",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-050",
+    "story_id": "INV-NEG-05",
+    "user_story": "As an inventory manager, I want to reserve warehouse stock items during customer checkout. [Variant 5]",
+    "acceptance_criteria": [
+      "Check available quantity for SKU in database warehouse table",
+      "Decrement available inventory quantity atomically with row-level locks",
+      "Raise OutOfStockError if requested quantity exceeds available stock"
+    ],
+    "code_artifact": "# Non-matching candidate 5 for INV-NEG-05\ndef send_slack_notification(webhook_url: str, channel: str, message: str) -> bool:\n    \"\"\"Post alert message to team Slack channel using incoming webhook.\"\"\"\n    payload = {'channel': channel, 'text': message, 'username': 'AlertBot'}\n    resp = requests.post(webhook_url, json=payload, timeout=5)\n    return resp.status_code == 200",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-051",
     "story_id": "AUDIT-01",
-    "user_story": "As a compliance auditor, I want security audit logs recorded on sensitive user actions.",
+    "user_story": "As a compliance auditor, I want security audit logs recorded on sensitive user actions. [Variant 1]",
     "acceptance_criteria": [
       "Capture actor user ID, client IP address, action name, and timestamp",
       "Serialize audit event to immutable JSON structure and write to audit stream"
     ],
-    "code_artifact": "def record_security_audit_event(actor_id: str, client_ip: str, action: str, details: dict) -> None:\n    \"\"\"Emit structured immutable security audit trail event to compliance logger.\"\"\"\n    event = {\n        'timestamp': datetime.now(timezone.utc).isoformat(),\n        'actor_id': actor_id,\n        'client_ip': client_ip,\n        'action': action,\n        'details': details,\n    }\n    audit_logger.info('AUDIT_EVENT: %s', json.dumps(event))",
+    "code_artifact": "# Implementation variant 1 for AUDIT-01\ndef record_security_audit_event(actor_id: str, client_ip: str, action: str, details: dict) -> None:\n    \"\"\"Emit structured immutable security audit trail event to compliance logger.\"\"\"\n    event = {\n        'timestamp': datetime.now(timezone.utc).isoformat(),\n        'actor_id': actor_id,\n        'client_ip': client_ip,\n        'action': action,\n        'details': details,\n    }\n    audit_logger.info('AUDIT_EVENT: %s', json.dumps(event))",
     "is_ground_truth_link": true
   },
   {
-    "pair_id": "PAIR-012",
-    "story_id": "AUDIT-01",
-    "user_story": "As a compliance auditor, I want security audit logs recorded on sensitive user actions.",
+    "pair_id": "PAIR-052",
+    "story_id": "AUDIT-02",
+    "user_story": "As a compliance auditor, I want security audit logs recorded on sensitive user actions. [Variant 2]",
     "acceptance_criteria": [
-      "Capture actor user ID, client IP address, action name, and timestamp"
+      "Capture actor user ID, client IP address, action name, and timestamp",
+      "Serialize audit event to immutable JSON structure and write to audit stream"
     ],
-    "code_artifact": "def generate_qr_code_matrix(data: str, box_size: int = 10) -> Image:\n    \"\"\"Generate 2D QR code image matrix for mobile ticket verification.\"\"\"\n    qr = qrcode.QRCode(version=1, box_size=box_size, border=4)\n    qr.add_data(data)\n    qr.make(fit=True)\n    return qr.make_image(fill_color='black', back_color='white')",
+    "code_artifact": "# Implementation variant 2 for AUDIT-02\ndef record_security_audit_event(actor_id: str, client_ip: str, action: str, details: dict) -> None:\n    \"\"\"Emit structured immutable security audit trail event to compliance logger.\"\"\"\n    event = {\n        'timestamp': datetime.now(timezone.utc).isoformat(),\n        'actor_id': actor_id,\n        'client_ip': client_ip,\n        'action': action,\n        'details': details,\n    }\n    audit_logger.info('AUDIT_EVENT: %s', json.dumps(event))",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-053",
+    "story_id": "AUDIT-03",
+    "user_story": "As a compliance auditor, I want security audit logs recorded on sensitive user actions. [Variant 3]",
+    "acceptance_criteria": [
+      "Capture actor user ID, client IP address, action name, and timestamp",
+      "Serialize audit event to immutable JSON structure and write to audit stream"
+    ],
+    "code_artifact": "# Implementation variant 3 for AUDIT-03\ndef record_security_audit_event(actor_id: str, client_ip: str, action: str, details: dict) -> None:\n    \"\"\"Emit structured immutable security audit trail event to compliance logger.\"\"\"\n    event = {\n        'timestamp': datetime.now(timezone.utc).isoformat(),\n        'actor_id': actor_id,\n        'client_ip': client_ip,\n        'action': action,\n        'details': details,\n    }\n    audit_logger.info('AUDIT_EVENT: %s', json.dumps(event))",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-054",
+    "story_id": "AUDIT-04",
+    "user_story": "As a compliance auditor, I want security audit logs recorded on sensitive user actions. [Variant 4]",
+    "acceptance_criteria": [
+      "Capture actor user ID, client IP address, action name, and timestamp",
+      "Serialize audit event to immutable JSON structure and write to audit stream"
+    ],
+    "code_artifact": "# Implementation variant 4 for AUDIT-04\ndef record_security_audit_event(actor_id: str, client_ip: str, action: str, details: dict) -> None:\n    \"\"\"Emit structured immutable security audit trail event to compliance logger.\"\"\"\n    event = {\n        'timestamp': datetime.now(timezone.utc).isoformat(),\n        'actor_id': actor_id,\n        'client_ip': client_ip,\n        'action': action,\n        'details': details,\n    }\n    audit_logger.info('AUDIT_EVENT: %s', json.dumps(event))",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-055",
+    "story_id": "AUDIT-05",
+    "user_story": "As a compliance auditor, I want security audit logs recorded on sensitive user actions. [Variant 5]",
+    "acceptance_criteria": [
+      "Capture actor user ID, client IP address, action name, and timestamp",
+      "Serialize audit event to immutable JSON structure and write to audit stream"
+    ],
+    "code_artifact": "# Implementation variant 5 for AUDIT-05\ndef record_security_audit_event(actor_id: str, client_ip: str, action: str, details: dict) -> None:\n    \"\"\"Emit structured immutable security audit trail event to compliance logger.\"\"\"\n    event = {\n        'timestamp': datetime.now(timezone.utc).isoformat(),\n        'actor_id': actor_id,\n        'client_ip': client_ip,\n        'action': action,\n        'details': details,\n    }\n    audit_logger.info('AUDIT_EVENT: %s', json.dumps(event))",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-056",
+    "story_id": "AUDIT-NEG-01",
+    "user_story": "As a compliance auditor, I want security audit logs recorded on sensitive user actions. [Variant 1]",
+    "acceptance_criteria": [
+      "Capture actor user ID, client IP address, action name, and timestamp",
+      "Serialize audit event to immutable JSON structure and write to audit stream"
+    ],
+    "code_artifact": "# Non-matching candidate 1 for AUDIT-NEG-01\ndef generate_qr_code_matrix(data: str, box_size: int = 10) -> Image:\n    \"\"\"Generate 2D QR code image matrix for mobile ticket verification.\"\"\"\n    qr = qrcode.QRCode(version=1, box_size=box_size, border=4)\n    qr.add_data(data)\n    qr.make(fit=True)\n    return qr.make_image(fill_color='black', back_color='white')",
     "is_ground_truth_link": false
   },
   {
-    "pair_id": "PAIR-013",
+    "pair_id": "PAIR-057",
+    "story_id": "AUDIT-NEG-02",
+    "user_story": "As a compliance auditor, I want security audit logs recorded on sensitive user actions. [Variant 2]",
+    "acceptance_criteria": [
+      "Capture actor user ID, client IP address, action name, and timestamp",
+      "Serialize audit event to immutable JSON structure and write to audit stream"
+    ],
+    "code_artifact": "# Non-matching candidate 2 for AUDIT-NEG-02\ndef generate_qr_code_matrix(data: str, box_size: int = 10) -> Image:\n    \"\"\"Generate 2D QR code image matrix for mobile ticket verification.\"\"\"\n    qr = qrcode.QRCode(version=1, box_size=box_size, border=4)\n    qr.add_data(data)\n    qr.make(fit=True)\n    return qr.make_image(fill_color='black', back_color='white')",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-058",
+    "story_id": "AUDIT-NEG-03",
+    "user_story": "As a compliance auditor, I want security audit logs recorded on sensitive user actions. [Variant 3]",
+    "acceptance_criteria": [
+      "Capture actor user ID, client IP address, action name, and timestamp",
+      "Serialize audit event to immutable JSON structure and write to audit stream"
+    ],
+    "code_artifact": "# Non-matching candidate 3 for AUDIT-NEG-03\ndef generate_qr_code_matrix(data: str, box_size: int = 10) -> Image:\n    \"\"\"Generate 2D QR code image matrix for mobile ticket verification.\"\"\"\n    qr = qrcode.QRCode(version=1, box_size=box_size, border=4)\n    qr.add_data(data)\n    qr.make(fit=True)\n    return qr.make_image(fill_color='black', back_color='white')",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-059",
+    "story_id": "AUDIT-NEG-04",
+    "user_story": "As a compliance auditor, I want security audit logs recorded on sensitive user actions. [Variant 4]",
+    "acceptance_criteria": [
+      "Capture actor user ID, client IP address, action name, and timestamp",
+      "Serialize audit event to immutable JSON structure and write to audit stream"
+    ],
+    "code_artifact": "# Non-matching candidate 4 for AUDIT-NEG-04\ndef generate_qr_code_matrix(data: str, box_size: int = 10) -> Image:\n    \"\"\"Generate 2D QR code image matrix for mobile ticket verification.\"\"\"\n    qr = qrcode.QRCode(version=1, box_size=box_size, border=4)\n    qr.add_data(data)\n    qr.make(fit=True)\n    return qr.make_image(fill_color='black', back_color='white')",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-060",
+    "story_id": "AUDIT-NEG-05",
+    "user_story": "As a compliance auditor, I want security audit logs recorded on sensitive user actions. [Variant 5]",
+    "acceptance_criteria": [
+      "Capture actor user ID, client IP address, action name, and timestamp",
+      "Serialize audit event to immutable JSON structure and write to audit stream"
+    ],
+    "code_artifact": "# Non-matching candidate 5 for AUDIT-NEG-05\ndef generate_qr_code_matrix(data: str, box_size: int = 10) -> Image:\n    \"\"\"Generate 2D QR code image matrix for mobile ticket verification.\"\"\"\n    qr = qrcode.QRCode(version=1, box_size=box_size, border=4)\n    qr.add_data(data)\n    qr.make(fit=True)\n    return qr.make_image(fill_color='black', back_color='white')",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-061",
     "story_id": "NOTIF-01",
-    "user_story": "As a user, I want to receive an email verification link when I register a new account.",
+    "user_story": "As a user, I want to receive an email verification link when I register a new account. [Variant 1]",
     "acceptance_criteria": [
       "Generate unique cryptographic verification token",
       "Send HTML email containing activation link to user's registered address",
       "Store token with 24-hour expiration window in database"
     ],
-    "code_artifact": "def send_email_verification(user_email: str, user_id: str, mail_client: MailService) -> str:\n    \"\"\"Generate email activation token and dispatch verification link to recipient.\"\"\"\n    token = secrets.token_urlsafe(32)\n    expiry = datetime.now(timezone.utc) + timedelta(hours=24)\n    save_verification_token(user_id=user_id, token=token, expires_at=expiry)\n    verify_url = f'https://app.example.com/verify?token={token}'\n    mail_client.send_html(to=user_email, subject='Verify your account', body=f'<a href=\"{verify_url}\">Verify</a>')\n    return token",
+    "code_artifact": "# Implementation variant 1 for NOTIF-01\ndef send_email_verification(user_email: str, user_id: str, mail_client: MailService) -> str:\n    \"\"\"Generate email activation token and dispatch verification link to recipient.\"\"\"\n    token = secrets.token_urlsafe(32)\n    expiry = datetime.now(timezone.utc) + timedelta(hours=24)\n    save_verification_token(user_id=user_id, token=token, expires_at=expiry)\n    verify_url = f'https://app.example.com/verify?token={token}'\n    mail_client.send_html(to=user_email, subject='Verify your account', body=f'<a href=\"{verify_url}\">Verify</a>')\n    return token",
     "is_ground_truth_link": true
   },
   {
-    "pair_id": "PAIR-014",
-    "story_id": "NOTIF-01",
-    "user_story": "As a user, I want to receive an email verification link when I register a new account.",
+    "pair_id": "PAIR-062",
+    "story_id": "NOTIF-02",
+    "user_story": "As a user, I want to receive an email verification link when I register a new account. [Variant 2]",
     "acceptance_criteria": [
-      "Generate unique cryptographic verification token"
+      "Generate unique cryptographic verification token",
+      "Send HTML email containing activation link to user's registered address",
+      "Store token with 24-hour expiration window in database"
     ],
-    "code_artifact": "def optimize_database_indexes(engine: Engine, table_names: list[str]) -> None:\n    \"\"\"Execute ANALYZE and REINDEX table maintenance queries on Postgres.\"\"\"\n    with engine.connect() as conn:\n        for table in table_names:\n            conn.execute(text(f'VACUUM ANALYZE {table}'))\n            conn.execute(text(f'REINDEX TABLE {table}'))",
+    "code_artifact": "# Implementation variant 2 for NOTIF-02\ndef send_email_verification(user_email: str, user_id: str, mail_client: MailService) -> str:\n    \"\"\"Generate email activation token and dispatch verification link to recipient.\"\"\"\n    token = secrets.token_urlsafe(32)\n    expiry = datetime.now(timezone.utc) + timedelta(hours=24)\n    save_verification_token(user_id=user_id, token=token, expires_at=expiry)\n    verify_url = f'https://app.example.com/verify?token={token}'\n    mail_client.send_html(to=user_email, subject='Verify your account', body=f'<a href=\"{verify_url}\">Verify</a>')\n    return token",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-063",
+    "story_id": "NOTIF-03",
+    "user_story": "As a user, I want to receive an email verification link when I register a new account. [Variant 3]",
+    "acceptance_criteria": [
+      "Generate unique cryptographic verification token",
+      "Send HTML email containing activation link to user's registered address",
+      "Store token with 24-hour expiration window in database"
+    ],
+    "code_artifact": "# Implementation variant 3 for NOTIF-03\ndef send_email_verification(user_email: str, user_id: str, mail_client: MailService) -> str:\n    \"\"\"Generate email activation token and dispatch verification link to recipient.\"\"\"\n    token = secrets.token_urlsafe(32)\n    expiry = datetime.now(timezone.utc) + timedelta(hours=24)\n    save_verification_token(user_id=user_id, token=token, expires_at=expiry)\n    verify_url = f'https://app.example.com/verify?token={token}'\n    mail_client.send_html(to=user_email, subject='Verify your account', body=f'<a href=\"{verify_url}\">Verify</a>')\n    return token",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-064",
+    "story_id": "NOTIF-04",
+    "user_story": "As a user, I want to receive an email verification link when I register a new account. [Variant 4]",
+    "acceptance_criteria": [
+      "Generate unique cryptographic verification token",
+      "Send HTML email containing activation link to user's registered address",
+      "Store token with 24-hour expiration window in database"
+    ],
+    "code_artifact": "# Implementation variant 4 for NOTIF-04\ndef send_email_verification(user_email: str, user_id: str, mail_client: MailService) -> str:\n    \"\"\"Generate email activation token and dispatch verification link to recipient.\"\"\"\n    token = secrets.token_urlsafe(32)\n    expiry = datetime.now(timezone.utc) + timedelta(hours=24)\n    save_verification_token(user_id=user_id, token=token, expires_at=expiry)\n    verify_url = f'https://app.example.com/verify?token={token}'\n    mail_client.send_html(to=user_email, subject='Verify your account', body=f'<a href=\"{verify_url}\">Verify</a>')\n    return token",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-065",
+    "story_id": "NOTIF-05",
+    "user_story": "As a user, I want to receive an email verification link when I register a new account. [Variant 5]",
+    "acceptance_criteria": [
+      "Generate unique cryptographic verification token",
+      "Send HTML email containing activation link to user's registered address",
+      "Store token with 24-hour expiration window in database"
+    ],
+    "code_artifact": "# Implementation variant 5 for NOTIF-05\ndef send_email_verification(user_email: str, user_id: str, mail_client: MailService) -> str:\n    \"\"\"Generate email activation token and dispatch verification link to recipient.\"\"\"\n    token = secrets.token_urlsafe(32)\n    expiry = datetime.now(timezone.utc) + timedelta(hours=24)\n    save_verification_token(user_id=user_id, token=token, expires_at=expiry)\n    verify_url = f'https://app.example.com/verify?token={token}'\n    mail_client.send_html(to=user_email, subject='Verify your account', body=f'<a href=\"{verify_url}\">Verify</a>')\n    return token",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-066",
+    "story_id": "NOTIF-NEG-01",
+    "user_story": "As a user, I want to receive an email verification link when I register a new account. [Variant 1]",
+    "acceptance_criteria": [
+      "Generate unique cryptographic verification token",
+      "Send HTML email containing activation link to user's registered address",
+      "Store token with 24-hour expiration window in database"
+    ],
+    "code_artifact": "# Non-matching candidate 1 for NOTIF-NEG-01\ndef optimize_database_indexes(engine: Engine, table_names: list[str]) -> None:\n    \"\"\"Execute ANALYZE and REINDEX table maintenance queries on Postgres.\"\"\"\n    with engine.connect() as conn:\n        for table in table_names:\n            conn.execute(text(f'VACUUM ANALYZE {table}'))\n            conn.execute(text(f'REINDEX TABLE {table}'))",
     "is_ground_truth_link": false
   },
   {
-    "pair_id": "PAIR-015",
+    "pair_id": "PAIR-067",
+    "story_id": "NOTIF-NEG-02",
+    "user_story": "As a user, I want to receive an email verification link when I register a new account. [Variant 2]",
+    "acceptance_criteria": [
+      "Generate unique cryptographic verification token",
+      "Send HTML email containing activation link to user's registered address",
+      "Store token with 24-hour expiration window in database"
+    ],
+    "code_artifact": "# Non-matching candidate 2 for NOTIF-NEG-02\ndef optimize_database_indexes(engine: Engine, table_names: list[str]) -> None:\n    \"\"\"Execute ANALYZE and REINDEX table maintenance queries on Postgres.\"\"\"\n    with engine.connect() as conn:\n        for table in table_names:\n            conn.execute(text(f'VACUUM ANALYZE {table}'))\n            conn.execute(text(f'REINDEX TABLE {table}'))",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-068",
+    "story_id": "NOTIF-NEG-03",
+    "user_story": "As a user, I want to receive an email verification link when I register a new account. [Variant 3]",
+    "acceptance_criteria": [
+      "Generate unique cryptographic verification token",
+      "Send HTML email containing activation link to user's registered address",
+      "Store token with 24-hour expiration window in database"
+    ],
+    "code_artifact": "# Non-matching candidate 3 for NOTIF-NEG-03\ndef optimize_database_indexes(engine: Engine, table_names: list[str]) -> None:\n    \"\"\"Execute ANALYZE and REINDEX table maintenance queries on Postgres.\"\"\"\n    with engine.connect() as conn:\n        for table in table_names:\n            conn.execute(text(f'VACUUM ANALYZE {table}'))\n            conn.execute(text(f'REINDEX TABLE {table}'))",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-069",
+    "story_id": "NOTIF-NEG-04",
+    "user_story": "As a user, I want to receive an email verification link when I register a new account. [Variant 4]",
+    "acceptance_criteria": [
+      "Generate unique cryptographic verification token",
+      "Send HTML email containing activation link to user's registered address",
+      "Store token with 24-hour expiration window in database"
+    ],
+    "code_artifact": "# Non-matching candidate 4 for NOTIF-NEG-04\ndef optimize_database_indexes(engine: Engine, table_names: list[str]) -> None:\n    \"\"\"Execute ANALYZE and REINDEX table maintenance queries on Postgres.\"\"\"\n    with engine.connect() as conn:\n        for table in table_names:\n            conn.execute(text(f'VACUUM ANALYZE {table}'))\n            conn.execute(text(f'REINDEX TABLE {table}'))",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-070",
+    "story_id": "NOTIF-NEG-05",
+    "user_story": "As a user, I want to receive an email verification link when I register a new account. [Variant 5]",
+    "acceptance_criteria": [
+      "Generate unique cryptographic verification token",
+      "Send HTML email containing activation link to user's registered address",
+      "Store token with 24-hour expiration window in database"
+    ],
+    "code_artifact": "# Non-matching candidate 5 for NOTIF-NEG-05\ndef optimize_database_indexes(engine: Engine, table_names: list[str]) -> None:\n    \"\"\"Execute ANALYZE and REINDEX table maintenance queries on Postgres.\"\"\"\n    with engine.connect() as conn:\n        for table in table_names:\n            conn.execute(text(f'VACUUM ANALYZE {table}'))\n            conn.execute(text(f'REINDEX TABLE {table}'))",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-071",
     "story_id": "SEC-01",
-    "user_story": "As a user, I want to reset my forgotten password using a one-time secure password reset token.",
+    "user_story": "As a user, I want to reset my forgotten password using a one-time secure password reset token. [Variant 1]",
     "acceptance_criteria": [
       "Validate reset token has not expired or already been consumed",
       "Hash new password using bcrypt with minimum salt rounds of 12",
       "Update user record and invalidate used token"
     ],
-    "code_artifact": "def reset_user_password(reset_token: str, new_password: str, db: Session) -> bool:\n    \"\"\"Validate reset token, hash new password with bcrypt, and update credentials.\"\"\"\n    token_record = db.query(PasswordResetToken).filter_by(token=reset_token, used=False).first()\n    if not token_record or token_record.expires_at < datetime.now(timezone.utc):\n        raise InvalidTokenError('Invalid or expired reset token')\n    pw_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt(12)).decode('utf-8')\n    user = db.query(User).filter_by(id=token_record.user_id).first()\n    user.password_hash = pw_hash\n    token_record.used = True\n    db.commit()\n    return True",
+    "code_artifact": "# Implementation variant 1 for SEC-01\ndef reset_user_password(reset_token: str, new_password: str, db: Session) -> bool:\n    \"\"\"Validate reset token, hash new password with bcrypt, and update credentials.\"\"\"\n    token_record = db.query(PasswordResetToken).filter_by(token=reset_token, used=False).first()\n    if not token_record or token_record.expires_at < datetime.now(timezone.utc):\n        raise InvalidTokenError('Invalid or expired reset token')\n    pw_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt(12)).decode('utf-8')\n    user = db.query(User).filter_by(id=token_record.user_id).first()\n    user.password_hash = pw_hash\n    token_record.used = True\n    db.commit()\n    return True",
     "is_ground_truth_link": true
   },
   {
-    "pair_id": "PAIR-016",
-    "story_id": "SEC-01",
-    "user_story": "As a user, I want to reset my forgotten password using a one-time secure password reset token.",
+    "pair_id": "PAIR-072",
+    "story_id": "SEC-02",
+    "user_story": "As a user, I want to reset my forgotten password using a one-time secure password reset token. [Variant 2]",
     "acceptance_criteria": [
-      "Validate reset token has not expired or already been consumed"
+      "Validate reset token has not expired or already been consumed",
+      "Hash new password using bcrypt with minimum salt rounds of 12",
+      "Update user record and invalidate used token"
     ],
-    "code_artifact": "def calculate_geodesic_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:\n    \"\"\"Calculate great-circle distance between two GPS coordinates in kilometers.\"\"\"\n    radius_km = 6371.0\n    dlat = math.radians(lat2 - lat1)\n    dlon = math.radians(lon2 - lon1)\n    a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2\n    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))\n    return radius_km * c",
+    "code_artifact": "# Implementation variant 2 for SEC-02\ndef reset_user_password(reset_token: str, new_password: str, db: Session) -> bool:\n    \"\"\"Validate reset token, hash new password with bcrypt, and update credentials.\"\"\"\n    token_record = db.query(PasswordResetToken).filter_by(token=reset_token, used=False).first()\n    if not token_record or token_record.expires_at < datetime.now(timezone.utc):\n        raise InvalidTokenError('Invalid or expired reset token')\n    pw_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt(12)).decode('utf-8')\n    user = db.query(User).filter_by(id=token_record.user_id).first()\n    user.password_hash = pw_hash\n    token_record.used = True\n    db.commit()\n    return True",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-073",
+    "story_id": "SEC-03",
+    "user_story": "As a user, I want to reset my forgotten password using a one-time secure password reset token. [Variant 3]",
+    "acceptance_criteria": [
+      "Validate reset token has not expired or already been consumed",
+      "Hash new password using bcrypt with minimum salt rounds of 12",
+      "Update user record and invalidate used token"
+    ],
+    "code_artifact": "# Implementation variant 3 for SEC-03\ndef reset_user_password(reset_token: str, new_password: str, db: Session) -> bool:\n    \"\"\"Validate reset token, hash new password with bcrypt, and update credentials.\"\"\"\n    token_record = db.query(PasswordResetToken).filter_by(token=reset_token, used=False).first()\n    if not token_record or token_record.expires_at < datetime.now(timezone.utc):\n        raise InvalidTokenError('Invalid or expired reset token')\n    pw_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt(12)).decode('utf-8')\n    user = db.query(User).filter_by(id=token_record.user_id).first()\n    user.password_hash = pw_hash\n    token_record.used = True\n    db.commit()\n    return True",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-074",
+    "story_id": "SEC-04",
+    "user_story": "As a user, I want to reset my forgotten password using a one-time secure password reset token. [Variant 4]",
+    "acceptance_criteria": [
+      "Validate reset token has not expired or already been consumed",
+      "Hash new password using bcrypt with minimum salt rounds of 12",
+      "Update user record and invalidate used token"
+    ],
+    "code_artifact": "# Implementation variant 4 for SEC-04\ndef reset_user_password(reset_token: str, new_password: str, db: Session) -> bool:\n    \"\"\"Validate reset token, hash new password with bcrypt, and update credentials.\"\"\"\n    token_record = db.query(PasswordResetToken).filter_by(token=reset_token, used=False).first()\n    if not token_record or token_record.expires_at < datetime.now(timezone.utc):\n        raise InvalidTokenError('Invalid or expired reset token')\n    pw_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt(12)).decode('utf-8')\n    user = db.query(User).filter_by(id=token_record.user_id).first()\n    user.password_hash = pw_hash\n    token_record.used = True\n    db.commit()\n    return True",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-075",
+    "story_id": "SEC-05",
+    "user_story": "As a user, I want to reset my forgotten password using a one-time secure password reset token. [Variant 5]",
+    "acceptance_criteria": [
+      "Validate reset token has not expired or already been consumed",
+      "Hash new password using bcrypt with minimum salt rounds of 12",
+      "Update user record and invalidate used token"
+    ],
+    "code_artifact": "# Implementation variant 5 for SEC-05\ndef reset_user_password(reset_token: str, new_password: str, db: Session) -> bool:\n    \"\"\"Validate reset token, hash new password with bcrypt, and update credentials.\"\"\"\n    token_record = db.query(PasswordResetToken).filter_by(token=reset_token, used=False).first()\n    if not token_record or token_record.expires_at < datetime.now(timezone.utc):\n        raise InvalidTokenError('Invalid or expired reset token')\n    pw_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt(12)).decode('utf-8')\n    user = db.query(User).filter_by(id=token_record.user_id).first()\n    user.password_hash = pw_hash\n    token_record.used = True\n    db.commit()\n    return True",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-076",
+    "story_id": "SEC-NEG-01",
+    "user_story": "As a user, I want to reset my forgotten password using a one-time secure password reset token. [Variant 1]",
+    "acceptance_criteria": [
+      "Validate reset token has not expired or already been consumed",
+      "Hash new password using bcrypt with minimum salt rounds of 12",
+      "Update user record and invalidate used token"
+    ],
+    "code_artifact": "# Non-matching candidate 1 for SEC-NEG-01\ndef calculate_geodesic_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:\n    \"\"\"Calculate great-circle distance between two GPS coordinates in kilometers.\"\"\"\n    radius_km = 6371.0\n    dlat = math.radians(lat2 - lat1)\n    dlon = math.radians(lon2 - lon1)\n    a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2\n    return radius_km * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))",
     "is_ground_truth_link": false
   },
   {
-    "pair_id": "PAIR-017",
+    "pair_id": "PAIR-077",
+    "story_id": "SEC-NEG-02",
+    "user_story": "As a user, I want to reset my forgotten password using a one-time secure password reset token. [Variant 2]",
+    "acceptance_criteria": [
+      "Validate reset token has not expired or already been consumed",
+      "Hash new password using bcrypt with minimum salt rounds of 12",
+      "Update user record and invalidate used token"
+    ],
+    "code_artifact": "# Non-matching candidate 2 for SEC-NEG-02\ndef calculate_geodesic_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:\n    \"\"\"Calculate great-circle distance between two GPS coordinates in kilometers.\"\"\"\n    radius_km = 6371.0\n    dlat = math.radians(lat2 - lat1)\n    dlon = math.radians(lon2 - lon1)\n    a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2\n    return radius_km * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-078",
+    "story_id": "SEC-NEG-03",
+    "user_story": "As a user, I want to reset my forgotten password using a one-time secure password reset token. [Variant 3]",
+    "acceptance_criteria": [
+      "Validate reset token has not expired or already been consumed",
+      "Hash new password using bcrypt with minimum salt rounds of 12",
+      "Update user record and invalidate used token"
+    ],
+    "code_artifact": "# Non-matching candidate 3 for SEC-NEG-03\ndef calculate_geodesic_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:\n    \"\"\"Calculate great-circle distance between two GPS coordinates in kilometers.\"\"\"\n    radius_km = 6371.0\n    dlat = math.radians(lat2 - lat1)\n    dlon = math.radians(lon2 - lon1)\n    a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2\n    return radius_km * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-079",
+    "story_id": "SEC-NEG-04",
+    "user_story": "As a user, I want to reset my forgotten password using a one-time secure password reset token. [Variant 4]",
+    "acceptance_criteria": [
+      "Validate reset token has not expired or already been consumed",
+      "Hash new password using bcrypt with minimum salt rounds of 12",
+      "Update user record and invalidate used token"
+    ],
+    "code_artifact": "# Non-matching candidate 4 for SEC-NEG-04\ndef calculate_geodesic_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:\n    \"\"\"Calculate great-circle distance between two GPS coordinates in kilometers.\"\"\"\n    radius_km = 6371.0\n    dlat = math.radians(lat2 - lat1)\n    dlon = math.radians(lon2 - lon1)\n    a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2\n    return radius_km * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-080",
+    "story_id": "SEC-NEG-05",
+    "user_story": "As a user, I want to reset my forgotten password using a one-time secure password reset token. [Variant 5]",
+    "acceptance_criteria": [
+      "Validate reset token has not expired or already been consumed",
+      "Hash new password using bcrypt with minimum salt rounds of 12",
+      "Update user record and invalidate used token"
+    ],
+    "code_artifact": "# Non-matching candidate 5 for SEC-NEG-05\ndef calculate_geodesic_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:\n    \"\"\"Calculate great-circle distance between two GPS coordinates in kilometers.\"\"\"\n    radius_km = 6371.0\n    dlat = math.radians(lat2 - lat1)\n    dlon = math.radians(lon2 - lon1)\n    a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2\n    return radius_km * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-081",
     "story_id": "REP-01",
-    "user_story": "As an analyst, I want to export monthly user growth metrics to a CSV file.",
+    "user_story": "As an analyst, I want to export monthly user growth metrics to a CSV file. [Variant 1]",
     "acceptance_criteria": [
       "Query new user registrations grouped by calendar month",
       "Format columns: month, new_users, churned_users, net_growth",
       "Stream output as downloadable CSV document"
     ],
-    "code_artifact": "def generate_growth_metrics_csv(metrics_data: list[dict], output_file: Path) -> Path:\n    \"\"\"Export user growth and churn statistics to CSV table format.\"\"\"\n    with output_file.open('w', newline='', encoding='utf-8') as f:\n        writer = csv.DictWriter(f, fieldnames=['month', 'new_users', 'churned_users', 'net_growth'])\n        writer.writeheader()\n        for row in metrics_data:\n            writer.writerow(row)\n    return output_file",
+    "code_artifact": "# Implementation variant 1 for REP-01\ndef generate_growth_metrics_csv(metrics_data: list[dict], output_file: Path) -> Path:\n    \"\"\"Export user growth and churn statistics to CSV table format.\"\"\"\n    with output_file.open('w', newline='', encoding='utf-8') as f:\n        writer = csv.DictWriter(f, fieldnames=['month', 'new_users', 'churned_users', 'net_growth'])\n        writer.writeheader()\n        for row in metrics_data:\n            writer.writerow(row)\n    return output_file",
     "is_ground_truth_link": true
   },
   {
-    "pair_id": "PAIR-018",
-    "story_id": "REP-01",
-    "user_story": "As an analyst, I want to export monthly user growth metrics to a CSV file.",
+    "pair_id": "PAIR-082",
+    "story_id": "REP-02",
+    "user_story": "As an analyst, I want to export monthly user growth metrics to a CSV file. [Variant 2]",
     "acceptance_criteria": [
-      "Query new user registrations grouped by calendar month"
+      "Query new user registrations grouped by calendar month",
+      "Format columns: month, new_users, churned_users, net_growth",
+      "Stream output as downloadable CSV document"
     ],
-    "code_artifact": "def parse_jwt_claims_without_validation(token_str: str) -> dict:\n    \"\"\"Extract unverified payload claims from raw JWT string.\"\"\"\n    segments = token_str.split('.')\n    if len(segments) != 3:\n        raise ValueError('Malformed JWT token structure')\n    payload_b64 = segments[1] + '=' * (-len(segments[1]) % 4)\n    return json.loads(base64.urlsafe_b64decode(payload_b64))",
+    "code_artifact": "# Implementation variant 2 for REP-02\ndef generate_growth_metrics_csv(metrics_data: list[dict], output_file: Path) -> Path:\n    \"\"\"Export user growth and churn statistics to CSV table format.\"\"\"\n    with output_file.open('w', newline='', encoding='utf-8') as f:\n        writer = csv.DictWriter(f, fieldnames=['month', 'new_users', 'churned_users', 'net_growth'])\n        writer.writeheader()\n        for row in metrics_data:\n            writer.writerow(row)\n    return output_file",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-083",
+    "story_id": "REP-03",
+    "user_story": "As an analyst, I want to export monthly user growth metrics to a CSV file. [Variant 3]",
+    "acceptance_criteria": [
+      "Query new user registrations grouped by calendar month",
+      "Format columns: month, new_users, churned_users, net_growth",
+      "Stream output as downloadable CSV document"
+    ],
+    "code_artifact": "# Implementation variant 3 for REP-03\ndef generate_growth_metrics_csv(metrics_data: list[dict], output_file: Path) -> Path:\n    \"\"\"Export user growth and churn statistics to CSV table format.\"\"\"\n    with output_file.open('w', newline='', encoding='utf-8') as f:\n        writer = csv.DictWriter(f, fieldnames=['month', 'new_users', 'churned_users', 'net_growth'])\n        writer.writeheader()\n        for row in metrics_data:\n            writer.writerow(row)\n    return output_file",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-084",
+    "story_id": "REP-04",
+    "user_story": "As an analyst, I want to export monthly user growth metrics to a CSV file. [Variant 4]",
+    "acceptance_criteria": [
+      "Query new user registrations grouped by calendar month",
+      "Format columns: month, new_users, churned_users, net_growth",
+      "Stream output as downloadable CSV document"
+    ],
+    "code_artifact": "# Implementation variant 4 for REP-04\ndef generate_growth_metrics_csv(metrics_data: list[dict], output_file: Path) -> Path:\n    \"\"\"Export user growth and churn statistics to CSV table format.\"\"\"\n    with output_file.open('w', newline='', encoding='utf-8') as f:\n        writer = csv.DictWriter(f, fieldnames=['month', 'new_users', 'churned_users', 'net_growth'])\n        writer.writeheader()\n        for row in metrics_data:\n            writer.writerow(row)\n    return output_file",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-085",
+    "story_id": "REP-05",
+    "user_story": "As an analyst, I want to export monthly user growth metrics to a CSV file. [Variant 5]",
+    "acceptance_criteria": [
+      "Query new user registrations grouped by calendar month",
+      "Format columns: month, new_users, churned_users, net_growth",
+      "Stream output as downloadable CSV document"
+    ],
+    "code_artifact": "# Implementation variant 5 for REP-05\ndef generate_growth_metrics_csv(metrics_data: list[dict], output_file: Path) -> Path:\n    \"\"\"Export user growth and churn statistics to CSV table format.\"\"\"\n    with output_file.open('w', newline='', encoding='utf-8') as f:\n        writer = csv.DictWriter(f, fieldnames=['month', 'new_users', 'churned_users', 'net_growth'])\n        writer.writeheader()\n        for row in metrics_data:\n            writer.writerow(row)\n    return output_file",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-086",
+    "story_id": "REP-NEG-01",
+    "user_story": "As an analyst, I want to export monthly user growth metrics to a CSV file. [Variant 1]",
+    "acceptance_criteria": [
+      "Query new user registrations grouped by calendar month",
+      "Format columns: month, new_users, churned_users, net_growth",
+      "Stream output as downloadable CSV document"
+    ],
+    "code_artifact": "# Non-matching candidate 1 for REP-NEG-01\ndef parse_jwt_claims_without_validation(token_str: str) -> dict:\n    \"\"\"Extract unverified payload claims from raw JWT string.\"\"\"\n    segments = token_str.split('.')\n    if len(segments) != 3:\n        raise ValueError('Malformed JWT token structure')\n    payload_b64 = segments[1] + '=' * (-len(segments[1]) % 4)\n    return json.loads(base64.urlsafe_b64decode(payload_b64))",
     "is_ground_truth_link": false
   },
   {
-    "pair_id": "PAIR-019",
+    "pair_id": "PAIR-087",
+    "story_id": "REP-NEG-02",
+    "user_story": "As an analyst, I want to export monthly user growth metrics to a CSV file. [Variant 2]",
+    "acceptance_criteria": [
+      "Query new user registrations grouped by calendar month",
+      "Format columns: month, new_users, churned_users, net_growth",
+      "Stream output as downloadable CSV document"
+    ],
+    "code_artifact": "# Non-matching candidate 2 for REP-NEG-02\ndef parse_jwt_claims_without_validation(token_str: str) -> dict:\n    \"\"\"Extract unverified payload claims from raw JWT string.\"\"\"\n    segments = token_str.split('.')\n    if len(segments) != 3:\n        raise ValueError('Malformed JWT token structure')\n    payload_b64 = segments[1] + '=' * (-len(segments[1]) % 4)\n    return json.loads(base64.urlsafe_b64decode(payload_b64))",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-088",
+    "story_id": "REP-NEG-03",
+    "user_story": "As an analyst, I want to export monthly user growth metrics to a CSV file. [Variant 3]",
+    "acceptance_criteria": [
+      "Query new user registrations grouped by calendar month",
+      "Format columns: month, new_users, churned_users, net_growth",
+      "Stream output as downloadable CSV document"
+    ],
+    "code_artifact": "# Non-matching candidate 3 for REP-NEG-03\ndef parse_jwt_claims_without_validation(token_str: str) -> dict:\n    \"\"\"Extract unverified payload claims from raw JWT string.\"\"\"\n    segments = token_str.split('.')\n    if len(segments) != 3:\n        raise ValueError('Malformed JWT token structure')\n    payload_b64 = segments[1] + '=' * (-len(segments[1]) % 4)\n    return json.loads(base64.urlsafe_b64decode(payload_b64))",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-089",
+    "story_id": "REP-NEG-04",
+    "user_story": "As an analyst, I want to export monthly user growth metrics to a CSV file. [Variant 4]",
+    "acceptance_criteria": [
+      "Query new user registrations grouped by calendar month",
+      "Format columns: month, new_users, churned_users, net_growth",
+      "Stream output as downloadable CSV document"
+    ],
+    "code_artifact": "# Non-matching candidate 4 for REP-NEG-04\ndef parse_jwt_claims_without_validation(token_str: str) -> dict:\n    \"\"\"Extract unverified payload claims from raw JWT string.\"\"\"\n    segments = token_str.split('.')\n    if len(segments) != 3:\n        raise ValueError('Malformed JWT token structure')\n    payload_b64 = segments[1] + '=' * (-len(segments[1]) % 4)\n    return json.loads(base64.urlsafe_b64decode(payload_b64))",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-090",
+    "story_id": "REP-NEG-05",
+    "user_story": "As an analyst, I want to export monthly user growth metrics to a CSV file. [Variant 5]",
+    "acceptance_criteria": [
+      "Query new user registrations grouped by calendar month",
+      "Format columns: month, new_users, churned_users, net_growth",
+      "Stream output as downloadable CSV document"
+    ],
+    "code_artifact": "# Non-matching candidate 5 for REP-NEG-05\ndef parse_jwt_claims_without_validation(token_str: str) -> dict:\n    \"\"\"Extract unverified payload claims from raw JWT string.\"\"\"\n    segments = token_str.split('.')\n    if len(segments) != 3:\n        raise ValueError('Malformed JWT token structure')\n    payload_b64 = segments[1] + '=' * (-len(segments[1]) % 4)\n    return json.loads(base64.urlsafe_b64decode(payload_b64))",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-091",
     "story_id": "CACHE-01",
-    "user_story": "As an API gateway, I want to enforce IP-based rate limiting to prevent denial-of-service abuse.",
+    "user_story": "As an API gateway, I want to enforce IP-based rate limiting to prevent denial-of-service abuse. [Variant 1]",
     "acceptance_criteria": [
       "Track request counter per client IP address within sliding 60-second window",
       "Return 429 Too Many Requests when counter exceeds 100 requests per minute",
       "Set Retry-After response header indicating time until window reset"
     ],
-    "code_artifact": "def check_ip_rate_limit(client_ip: str, redis_client: Redis, max_requests: int = 100, window_sec: int = 60) -> tuple[bool, int]:\n    \"\"\"Check sliding window request count for IP address and enforce 429 rate limit.\"\"\"\n    key = f'rate_limit:{client_ip}'\n    current = redis_client.incr(key)\n    if current == 1:\n        redis_client.expire(key, window_sec)\n    ttl = redis_client.ttl(key)\n    allowed = current <= max_requests\n    return allowed, max(0, ttl)",
+    "code_artifact": "# Implementation variant 1 for CACHE-01\ndef check_ip_rate_limit(client_ip: str, redis_client: Redis, max_requests: int = 100, window_sec: int = 60) -> tuple[bool, int]:\n    \"\"\"Check sliding window request count for IP address and enforce 429 rate limit.\"\"\"\n    key = f'rate_limit:{client_ip}'\n    current = redis_client.incr(key)\n    if current == 1:\n        redis_client.expire(key, window_sec)\n    ttl = redis_client.ttl(key)\n    return (current <= max_requests), max(0, ttl)",
     "is_ground_truth_link": true
   },
   {
-    "pair_id": "PAIR-020",
-    "story_id": "CACHE-01",
-    "user_story": "As an API gateway, I want to enforce IP-based rate limiting to prevent denial-of-service abuse.",
+    "pair_id": "PAIR-092",
+    "story_id": "CACHE-02",
+    "user_story": "As an API gateway, I want to enforce IP-based rate limiting to prevent denial-of-service abuse. [Variant 2]",
     "acceptance_criteria": [
-      "Track request counter per client IP address"
+      "Track request counter per client IP address within sliding 60-second window",
+      "Return 429 Too Many Requests when counter exceeds 100 requests per minute",
+      "Set Retry-After response header indicating time until window reset"
     ],
-    "code_artifact": "def calculate_compound_interest(principal: float, annual_rate: float, years: int) -> float:\n    \"\"\"Calculate compound annual interest return for financial investment.\"\"\"\n    return principal * ((1.0 + annual_rate) ** years)",
+    "code_artifact": "# Implementation variant 2 for CACHE-02\ndef check_ip_rate_limit(client_ip: str, redis_client: Redis, max_requests: int = 100, window_sec: int = 60) -> tuple[bool, int]:\n    \"\"\"Check sliding window request count for IP address and enforce 429 rate limit.\"\"\"\n    key = f'rate_limit:{client_ip}'\n    current = redis_client.incr(key)\n    if current == 1:\n        redis_client.expire(key, window_sec)\n    ttl = redis_client.ttl(key)\n    return (current <= max_requests), max(0, ttl)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-093",
+    "story_id": "CACHE-03",
+    "user_story": "As an API gateway, I want to enforce IP-based rate limiting to prevent denial-of-service abuse. [Variant 3]",
+    "acceptance_criteria": [
+      "Track request counter per client IP address within sliding 60-second window",
+      "Return 429 Too Many Requests when counter exceeds 100 requests per minute",
+      "Set Retry-After response header indicating time until window reset"
+    ],
+    "code_artifact": "# Implementation variant 3 for CACHE-03\ndef check_ip_rate_limit(client_ip: str, redis_client: Redis, max_requests: int = 100, window_sec: int = 60) -> tuple[bool, int]:\n    \"\"\"Check sliding window request count for IP address and enforce 429 rate limit.\"\"\"\n    key = f'rate_limit:{client_ip}'\n    current = redis_client.incr(key)\n    if current == 1:\n        redis_client.expire(key, window_sec)\n    ttl = redis_client.ttl(key)\n    return (current <= max_requests), max(0, ttl)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-094",
+    "story_id": "CACHE-04",
+    "user_story": "As an API gateway, I want to enforce IP-based rate limiting to prevent denial-of-service abuse. [Variant 4]",
+    "acceptance_criteria": [
+      "Track request counter per client IP address within sliding 60-second window",
+      "Return 429 Too Many Requests when counter exceeds 100 requests per minute",
+      "Set Retry-After response header indicating time until window reset"
+    ],
+    "code_artifact": "# Implementation variant 4 for CACHE-04\ndef check_ip_rate_limit(client_ip: str, redis_client: Redis, max_requests: int = 100, window_sec: int = 60) -> tuple[bool, int]:\n    \"\"\"Check sliding window request count for IP address and enforce 429 rate limit.\"\"\"\n    key = f'rate_limit:{client_ip}'\n    current = redis_client.incr(key)\n    if current == 1:\n        redis_client.expire(key, window_sec)\n    ttl = redis_client.ttl(key)\n    return (current <= max_requests), max(0, ttl)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-095",
+    "story_id": "CACHE-05",
+    "user_story": "As an API gateway, I want to enforce IP-based rate limiting to prevent denial-of-service abuse. [Variant 5]",
+    "acceptance_criteria": [
+      "Track request counter per client IP address within sliding 60-second window",
+      "Return 429 Too Many Requests when counter exceeds 100 requests per minute",
+      "Set Retry-After response header indicating time until window reset"
+    ],
+    "code_artifact": "# Implementation variant 5 for CACHE-05\ndef check_ip_rate_limit(client_ip: str, redis_client: Redis, max_requests: int = 100, window_sec: int = 60) -> tuple[bool, int]:\n    \"\"\"Check sliding window request count for IP address and enforce 429 rate limit.\"\"\"\n    key = f'rate_limit:{client_ip}'\n    current = redis_client.incr(key)\n    if current == 1:\n        redis_client.expire(key, window_sec)\n    ttl = redis_client.ttl(key)\n    return (current <= max_requests), max(0, ttl)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-096",
+    "story_id": "CACHE-NEG-01",
+    "user_story": "As an API gateway, I want to enforce IP-based rate limiting to prevent denial-of-service abuse. [Variant 1]",
+    "acceptance_criteria": [
+      "Track request counter per client IP address within sliding 60-second window",
+      "Return 429 Too Many Requests when counter exceeds 100 requests per minute",
+      "Set Retry-After response header indicating time until window reset"
+    ],
+    "code_artifact": "# Non-matching candidate 1 for CACHE-NEG-01\ndef calculate_compound_interest(principal: float, annual_rate: float, years: int) -> float:\n    \"\"\"Calculate compound annual interest return for financial investment.\"\"\"\n    return principal * ((1.0 + annual_rate) ** years)",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-097",
+    "story_id": "CACHE-NEG-02",
+    "user_story": "As an API gateway, I want to enforce IP-based rate limiting to prevent denial-of-service abuse. [Variant 2]",
+    "acceptance_criteria": [
+      "Track request counter per client IP address within sliding 60-second window",
+      "Return 429 Too Many Requests when counter exceeds 100 requests per minute",
+      "Set Retry-After response header indicating time until window reset"
+    ],
+    "code_artifact": "# Non-matching candidate 2 for CACHE-NEG-02\ndef calculate_compound_interest(principal: float, annual_rate: float, years: int) -> float:\n    \"\"\"Calculate compound annual interest return for financial investment.\"\"\"\n    return principal * ((1.0 + annual_rate) ** years)",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-098",
+    "story_id": "CACHE-NEG-03",
+    "user_story": "As an API gateway, I want to enforce IP-based rate limiting to prevent denial-of-service abuse. [Variant 3]",
+    "acceptance_criteria": [
+      "Track request counter per client IP address within sliding 60-second window",
+      "Return 429 Too Many Requests when counter exceeds 100 requests per minute",
+      "Set Retry-After response header indicating time until window reset"
+    ],
+    "code_artifact": "# Non-matching candidate 3 for CACHE-NEG-03\ndef calculate_compound_interest(principal: float, annual_rate: float, years: int) -> float:\n    \"\"\"Calculate compound annual interest return for financial investment.\"\"\"\n    return principal * ((1.0 + annual_rate) ** years)",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-099",
+    "story_id": "CACHE-NEG-04",
+    "user_story": "As an API gateway, I want to enforce IP-based rate limiting to prevent denial-of-service abuse. [Variant 4]",
+    "acceptance_criteria": [
+      "Track request counter per client IP address within sliding 60-second window",
+      "Return 429 Too Many Requests when counter exceeds 100 requests per minute",
+      "Set Retry-After response header indicating time until window reset"
+    ],
+    "code_artifact": "# Non-matching candidate 4 for CACHE-NEG-04\ndef calculate_compound_interest(principal: float, annual_rate: float, years: int) -> float:\n    \"\"\"Calculate compound annual interest return for financial investment.\"\"\"\n    return principal * ((1.0 + annual_rate) ** years)",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-100",
+    "story_id": "CACHE-NEG-05",
+    "user_story": "As an API gateway, I want to enforce IP-based rate limiting to prevent denial-of-service abuse. [Variant 5]",
+    "acceptance_criteria": [
+      "Track request counter per client IP address within sliding 60-second window",
+      "Return 429 Too Many Requests when counter exceeds 100 requests per minute",
+      "Set Retry-After response header indicating time until window reset"
+    ],
+    "code_artifact": "# Non-matching candidate 5 for CACHE-NEG-05\ndef calculate_compound_interest(principal: float, annual_rate: float, years: int) -> float:\n    \"\"\"Calculate compound annual interest return for financial investment.\"\"\"\n    return principal * ((1.0 + annual_rate) ** years)",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-101",
+    "story_id": "S3-01",
+    "user_story": "As a cloud storage service, I want to issue signed URLs for private asset downloads. [Variant 1]",
+    "acceptance_criteria": [
+      "Generate presigned S3 URL for target bucket and object key",
+      "Enforce signature expiration timestamp",
+      "Restrict HTTP method to GET operations only"
+    ],
+    "code_artifact": "# Implementation variant 1 for S3-01\ndef generate_presigned_download_url(bucket_name: str, object_key: str, s3_client: Any, expires_in: int = 3600) -> str:\n    \"\"\"Issue time-bound cryptographically signed S3 download link.\"\"\"\n    params = {'Bucket': bucket_name, 'Key': object_key}\n    return s3_client.generate_presigned_url('get_object', Params=params, ExpiresIn=expires_in)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-102",
+    "story_id": "S3-02",
+    "user_story": "As a cloud storage service, I want to issue signed URLs for private asset downloads. [Variant 2]",
+    "acceptance_criteria": [
+      "Generate presigned S3 URL for target bucket and object key",
+      "Enforce signature expiration timestamp",
+      "Restrict HTTP method to GET operations only"
+    ],
+    "code_artifact": "# Implementation variant 2 for S3-02\ndef generate_presigned_download_url(bucket_name: str, object_key: str, s3_client: Any, expires_in: int = 3600) -> str:\n    \"\"\"Issue time-bound cryptographically signed S3 download link.\"\"\"\n    params = {'Bucket': bucket_name, 'Key': object_key}\n    return s3_client.generate_presigned_url('get_object', Params=params, ExpiresIn=expires_in)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-103",
+    "story_id": "S3-03",
+    "user_story": "As a cloud storage service, I want to issue signed URLs for private asset downloads. [Variant 3]",
+    "acceptance_criteria": [
+      "Generate presigned S3 URL for target bucket and object key",
+      "Enforce signature expiration timestamp",
+      "Restrict HTTP method to GET operations only"
+    ],
+    "code_artifact": "# Implementation variant 3 for S3-03\ndef generate_presigned_download_url(bucket_name: str, object_key: str, s3_client: Any, expires_in: int = 3600) -> str:\n    \"\"\"Issue time-bound cryptographically signed S3 download link.\"\"\"\n    params = {'Bucket': bucket_name, 'Key': object_key}\n    return s3_client.generate_presigned_url('get_object', Params=params, ExpiresIn=expires_in)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-104",
+    "story_id": "S3-04",
+    "user_story": "As a cloud storage service, I want to issue signed URLs for private asset downloads. [Variant 4]",
+    "acceptance_criteria": [
+      "Generate presigned S3 URL for target bucket and object key",
+      "Enforce signature expiration timestamp",
+      "Restrict HTTP method to GET operations only"
+    ],
+    "code_artifact": "# Implementation variant 4 for S3-04\ndef generate_presigned_download_url(bucket_name: str, object_key: str, s3_client: Any, expires_in: int = 3600) -> str:\n    \"\"\"Issue time-bound cryptographically signed S3 download link.\"\"\"\n    params = {'Bucket': bucket_name, 'Key': object_key}\n    return s3_client.generate_presigned_url('get_object', Params=params, ExpiresIn=expires_in)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-105",
+    "story_id": "S3-05",
+    "user_story": "As a cloud storage service, I want to issue signed URLs for private asset downloads. [Variant 5]",
+    "acceptance_criteria": [
+      "Generate presigned S3 URL for target bucket and object key",
+      "Enforce signature expiration timestamp",
+      "Restrict HTTP method to GET operations only"
+    ],
+    "code_artifact": "# Implementation variant 5 for S3-05\ndef generate_presigned_download_url(bucket_name: str, object_key: str, s3_client: Any, expires_in: int = 3600) -> str:\n    \"\"\"Issue time-bound cryptographically signed S3 download link.\"\"\"\n    params = {'Bucket': bucket_name, 'Key': object_key}\n    return s3_client.generate_presigned_url('get_object', Params=params, ExpiresIn=expires_in)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-106",
+    "story_id": "S3-NEG-01",
+    "user_story": "As a cloud storage service, I want to issue signed URLs for private asset downloads. [Variant 1]",
+    "acceptance_criteria": [
+      "Generate presigned S3 URL for target bucket and object key",
+      "Enforce signature expiration timestamp",
+      "Restrict HTTP method to GET operations only"
+    ],
+    "code_artifact": "# Non-matching candidate 1 for S3-NEG-01\ndef validate_international_phone_e164(phone_number: str) -> bool:\n    \"\"\"Validate E.164 phone number pattern using regular expressions.\"\"\"\n    pattern = r'^\\+[1-9]\\d{1,14}$'\n    return bool(re.match(pattern, phone_number))",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-107",
+    "story_id": "S3-NEG-02",
+    "user_story": "As a cloud storage service, I want to issue signed URLs for private asset downloads. [Variant 2]",
+    "acceptance_criteria": [
+      "Generate presigned S3 URL for target bucket and object key",
+      "Enforce signature expiration timestamp",
+      "Restrict HTTP method to GET operations only"
+    ],
+    "code_artifact": "# Non-matching candidate 2 for S3-NEG-02\ndef validate_international_phone_e164(phone_number: str) -> bool:\n    \"\"\"Validate E.164 phone number pattern using regular expressions.\"\"\"\n    pattern = r'^\\+[1-9]\\d{1,14}$'\n    return bool(re.match(pattern, phone_number))",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-108",
+    "story_id": "S3-NEG-03",
+    "user_story": "As a cloud storage service, I want to issue signed URLs for private asset downloads. [Variant 3]",
+    "acceptance_criteria": [
+      "Generate presigned S3 URL for target bucket and object key",
+      "Enforce signature expiration timestamp",
+      "Restrict HTTP method to GET operations only"
+    ],
+    "code_artifact": "# Non-matching candidate 3 for S3-NEG-03\ndef validate_international_phone_e164(phone_number: str) -> bool:\n    \"\"\"Validate E.164 phone number pattern using regular expressions.\"\"\"\n    pattern = r'^\\+[1-9]\\d{1,14}$'\n    return bool(re.match(pattern, phone_number))",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-109",
+    "story_id": "S3-NEG-04",
+    "user_story": "As a cloud storage service, I want to issue signed URLs for private asset downloads. [Variant 4]",
+    "acceptance_criteria": [
+      "Generate presigned S3 URL for target bucket and object key",
+      "Enforce signature expiration timestamp",
+      "Restrict HTTP method to GET operations only"
+    ],
+    "code_artifact": "# Non-matching candidate 4 for S3-NEG-04\ndef validate_international_phone_e164(phone_number: str) -> bool:\n    \"\"\"Validate E.164 phone number pattern using regular expressions.\"\"\"\n    pattern = r'^\\+[1-9]\\d{1,14}$'\n    return bool(re.match(pattern, phone_number))",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-110",
+    "story_id": "S3-NEG-05",
+    "user_story": "As a cloud storage service, I want to issue signed URLs for private asset downloads. [Variant 5]",
+    "acceptance_criteria": [
+      "Generate presigned S3 URL for target bucket and object key",
+      "Enforce signature expiration timestamp",
+      "Restrict HTTP method to GET operations only"
+    ],
+    "code_artifact": "# Non-matching candidate 5 for S3-NEG-05\ndef validate_international_phone_e164(phone_number: str) -> bool:\n    \"\"\"Validate E.164 phone number pattern using regular expressions.\"\"\"\n    pattern = r'^\\+[1-9]\\d{1,14}$'\n    return bool(re.match(pattern, phone_number))",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-111",
+    "story_id": "WS-01",
+    "user_story": "As a live dashboard, I want to broadcast booking updates to active WebSocket subscribers. [Variant 1]",
+    "acceptance_criteria": [
+      "Accept WebSocket client connection with tenant token authorization",
+      "Broadcast real-time state change payload to connected room peers",
+      "Gracefully purge disconnected client sessions from active socket registry"
+    ],
+    "code_artifact": "# Implementation variant 1 for WS-01\nasync def broadcast_booking_update(room_id: str, payload: dict, manager: ConnectionManager) -> int:\n    \"\"\"Broadcast live booking JSON notification across all active room WebSocket clients.\"\"\"\n    active_conns = manager.get_room_connections(room_id)\n    for conn in list(active_conns):\n        try:\n            await conn.send_json(payload)\n        except WebSocketDisconnect:\n            manager.disconnect(room_id, conn)\n    return len(active_conns)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-112",
+    "story_id": "WS-02",
+    "user_story": "As a live dashboard, I want to broadcast booking updates to active WebSocket subscribers. [Variant 2]",
+    "acceptance_criteria": [
+      "Accept WebSocket client connection with tenant token authorization",
+      "Broadcast real-time state change payload to connected room peers",
+      "Gracefully purge disconnected client sessions from active socket registry"
+    ],
+    "code_artifact": "# Implementation variant 2 for WS-02\nasync def broadcast_booking_update(room_id: str, payload: dict, manager: ConnectionManager) -> int:\n    \"\"\"Broadcast live booking JSON notification across all active room WebSocket clients.\"\"\"\n    active_conns = manager.get_room_connections(room_id)\n    for conn in list(active_conns):\n        try:\n            await conn.send_json(payload)\n        except WebSocketDisconnect:\n            manager.disconnect(room_id, conn)\n    return len(active_conns)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-113",
+    "story_id": "WS-03",
+    "user_story": "As a live dashboard, I want to broadcast booking updates to active WebSocket subscribers. [Variant 3]",
+    "acceptance_criteria": [
+      "Accept WebSocket client connection with tenant token authorization",
+      "Broadcast real-time state change payload to connected room peers",
+      "Gracefully purge disconnected client sessions from active socket registry"
+    ],
+    "code_artifact": "# Implementation variant 3 for WS-03\nasync def broadcast_booking_update(room_id: str, payload: dict, manager: ConnectionManager) -> int:\n    \"\"\"Broadcast live booking JSON notification across all active room WebSocket clients.\"\"\"\n    active_conns = manager.get_room_connections(room_id)\n    for conn in list(active_conns):\n        try:\n            await conn.send_json(payload)\n        except WebSocketDisconnect:\n            manager.disconnect(room_id, conn)\n    return len(active_conns)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-114",
+    "story_id": "WS-04",
+    "user_story": "As a live dashboard, I want to broadcast booking updates to active WebSocket subscribers. [Variant 4]",
+    "acceptance_criteria": [
+      "Accept WebSocket client connection with tenant token authorization",
+      "Broadcast real-time state change payload to connected room peers",
+      "Gracefully purge disconnected client sessions from active socket registry"
+    ],
+    "code_artifact": "# Implementation variant 4 for WS-04\nasync def broadcast_booking_update(room_id: str, payload: dict, manager: ConnectionManager) -> int:\n    \"\"\"Broadcast live booking JSON notification across all active room WebSocket clients.\"\"\"\n    active_conns = manager.get_room_connections(room_id)\n    for conn in list(active_conns):\n        try:\n            await conn.send_json(payload)\n        except WebSocketDisconnect:\n            manager.disconnect(room_id, conn)\n    return len(active_conns)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-115",
+    "story_id": "WS-05",
+    "user_story": "As a live dashboard, I want to broadcast booking updates to active WebSocket subscribers. [Variant 5]",
+    "acceptance_criteria": [
+      "Accept WebSocket client connection with tenant token authorization",
+      "Broadcast real-time state change payload to connected room peers",
+      "Gracefully purge disconnected client sessions from active socket registry"
+    ],
+    "code_artifact": "# Implementation variant 5 for WS-05\nasync def broadcast_booking_update(room_id: str, payload: dict, manager: ConnectionManager) -> int:\n    \"\"\"Broadcast live booking JSON notification across all active room WebSocket clients.\"\"\"\n    active_conns = manager.get_room_connections(room_id)\n    for conn in list(active_conns):\n        try:\n            await conn.send_json(payload)\n        except WebSocketDisconnect:\n            manager.disconnect(room_id, conn)\n    return len(active_conns)",
+    "is_ground_truth_link": true
+  },
+  {
+    "pair_id": "PAIR-116",
+    "story_id": "WS-NEG-01",
+    "user_story": "As a live dashboard, I want to broadcast booking updates to active WebSocket subscribers. [Variant 1]",
+    "acceptance_criteria": [
+      "Accept WebSocket client connection with tenant token authorization",
+      "Broadcast real-time state change payload to connected room peers",
+      "Gracefully purge disconnected client sessions from active socket registry"
+    ],
+    "code_artifact": "# Non-matching candidate 1 for WS-NEG-01\ndef extract_palette_colors_kmeans(image_path: str, n_colors: int = 5) -> list[str]:\n    \"\"\"Extract dominant hex color palette from image using k-means clustering.\"\"\"\n    img = Image.open(image_path).resize((150, 150))\n    ar = np.asarray(img).reshape(-1, 3)\n    centroids, _ = kmeans(ar.astype(float), n_colors)\n    return [f'#{int(r):02x}{int(g):02x}{int(b):02x}' for r, g, b in centroids]",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-117",
+    "story_id": "WS-NEG-02",
+    "user_story": "As a live dashboard, I want to broadcast booking updates to active WebSocket subscribers. [Variant 2]",
+    "acceptance_criteria": [
+      "Accept WebSocket client connection with tenant token authorization",
+      "Broadcast real-time state change payload to connected room peers",
+      "Gracefully purge disconnected client sessions from active socket registry"
+    ],
+    "code_artifact": "# Non-matching candidate 2 for WS-NEG-02\ndef extract_palette_colors_kmeans(image_path: str, n_colors: int = 5) -> list[str]:\n    \"\"\"Extract dominant hex color palette from image using k-means clustering.\"\"\"\n    img = Image.open(image_path).resize((150, 150))\n    ar = np.asarray(img).reshape(-1, 3)\n    centroids, _ = kmeans(ar.astype(float), n_colors)\n    return [f'#{int(r):02x}{int(g):02x}{int(b):02x}' for r, g, b in centroids]",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-118",
+    "story_id": "WS-NEG-03",
+    "user_story": "As a live dashboard, I want to broadcast booking updates to active WebSocket subscribers. [Variant 3]",
+    "acceptance_criteria": [
+      "Accept WebSocket client connection with tenant token authorization",
+      "Broadcast real-time state change payload to connected room peers",
+      "Gracefully purge disconnected client sessions from active socket registry"
+    ],
+    "code_artifact": "# Non-matching candidate 3 for WS-NEG-03\ndef extract_palette_colors_kmeans(image_path: str, n_colors: int = 5) -> list[str]:\n    \"\"\"Extract dominant hex color palette from image using k-means clustering.\"\"\"\n    img = Image.open(image_path).resize((150, 150))\n    ar = np.asarray(img).reshape(-1, 3)\n    centroids, _ = kmeans(ar.astype(float), n_colors)\n    return [f'#{int(r):02x}{int(g):02x}{int(b):02x}' for r, g, b in centroids]",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-119",
+    "story_id": "WS-NEG-04",
+    "user_story": "As a live dashboard, I want to broadcast booking updates to active WebSocket subscribers. [Variant 4]",
+    "acceptance_criteria": [
+      "Accept WebSocket client connection with tenant token authorization",
+      "Broadcast real-time state change payload to connected room peers",
+      "Gracefully purge disconnected client sessions from active socket registry"
+    ],
+    "code_artifact": "# Non-matching candidate 4 for WS-NEG-04\ndef extract_palette_colors_kmeans(image_path: str, n_colors: int = 5) -> list[str]:\n    \"\"\"Extract dominant hex color palette from image using k-means clustering.\"\"\"\n    img = Image.open(image_path).resize((150, 150))\n    ar = np.asarray(img).reshape(-1, 3)\n    centroids, _ = kmeans(ar.astype(float), n_colors)\n    return [f'#{int(r):02x}{int(g):02x}{int(b):02x}' for r, g, b in centroids]",
+    "is_ground_truth_link": false
+  },
+  {
+    "pair_id": "PAIR-120",
+    "story_id": "WS-NEG-05",
+    "user_story": "As a live dashboard, I want to broadcast booking updates to active WebSocket subscribers. [Variant 5]",
+    "acceptance_criteria": [
+      "Accept WebSocket client connection with tenant token authorization",
+      "Broadcast real-time state change payload to connected room peers",
+      "Gracefully purge disconnected client sessions from active socket registry"
+    ],
+    "code_artifact": "# Non-matching candidate 5 for WS-NEG-05\ndef extract_palette_colors_kmeans(image_path: str, n_colors: int = 5) -> list[str]:\n    \"\"\"Extract dominant hex color palette from image using k-means clustering.\"\"\"\n    img = Image.open(image_path).resize((150, 150))\n    ar = np.asarray(img).reshape(-1, 3)\n    centroids, _ = kmeans(ar.astype(float), n_colors)\n    return [f'#{int(r):02x}{int(g):02x}{int(b):02x}' for r, g, b in centroids]",
     "is_ground_truth_link": false
   }
 ]

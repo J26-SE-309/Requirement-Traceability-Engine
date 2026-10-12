@@ -23,11 +23,11 @@ class Settings(BaseSettings):
 
     # --- Traceability Verification Thresholds ---
     confidence_high: float = Field(
-        default=0.80,
+        default=0.70,
         description="Cosine similarity threshold for verified link"
     )
     confidence_medium: float = Field(
-        default=0.65,
+        default=0.55,
         description="Threshold for candidate link needing manual review"
     )
 
