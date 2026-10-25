@@ -178,4 +178,15 @@
       "Complete multipart upload and assemble final storage object"
     ]
   }
+  ,
+  {
+  "story_id": "STORY-201",
+  "user_story": "As a system administrator, I want to export audit logs to an encrypted S3 bucket so that we meet compliance standards.",
+  "acceptance_criteria": [
+    "Encrypt ca audit log payloads using AES-256 before upload",
+    "Transmit encrypted payload to designated S3 bucket endpoint",
+    "Return upload confirmation receipt with object version ID"
+  ]
+}
+
 ]

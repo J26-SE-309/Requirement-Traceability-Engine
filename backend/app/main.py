@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Pre-warm local ONNX embedder and story cache so zero cold-start delay hits requests
+   
     try:
         from app.api.trace import EMBEDDER_AVAILABLE, _get_story_embedding, _load_default_stories, get_embedder
 
@@ -40,7 +40,6 @@ def create_app() -> FastAPI:
     )
     app.include_router(health.router)
     app.include_router(routes.router, prefix="/api/v1")
-    app.include_router(trace.router, prefix="/api/v1/trace")
     return app
 
 

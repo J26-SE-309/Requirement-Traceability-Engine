@@ -1,12 +1,14 @@
 /**
  * Sprint Backlog Story Manager for Requirement Traceability Engine.
  *
- * Reads active sprint backlog stories from workspace `.rte/stories.json`
- * or provides default project stories.
+ * Reads active sprint backlog stories dynamically from workspace `.rte/stories.json`,
+ * workspace `stories.json`, or the extension's internal `.rte/stories.json` storage,
+ * and falls back to default stories only if no configuration is found.
  */
 
 import * as vscode from "vscode";
 import { StoryRef } from "../api/types";
+import { resolveWorkspaceRootUri, resolveRteStorageUri } from "../utils/workspaceRoot";
 
 const DEFAULT_SPRINT_STORIES: StoryRef[] = [
   {
@@ -71,28 +73,40 @@ export class StoryManager {
   }
 
   public async reloadStories(): Promise<StoryRef[]> {
-    const folders = vscode.workspace.workspaceFolders;
-    if (folders && folders.length > 0) {
-      const rootUri = folders[0].uri;
-      const candidates = [
-        vscode.Uri.joinPath(rootUri, ".rte", "stories.json"),
-        vscode.Uri.joinPath(rootUri, "stories.json"),
-      ];
+    const workspaceUri = resolveWorkspaceRootUri();
+    const rteStorageUri = resolveRteStorageUri();
 
-      for (const uri of candidates) {
-        try {
-          const raw = await vscode.workspace.fs.readFile(uri);
-          const parsed = JSON.parse(new TextDecoder().decode(raw));
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            this.cachedStories = parsed;
-            return this.cachedStories;
-          }
-        } catch {
-          // File not found or unparseable, try next candidate
+    // Ranked lookup order:
+    // 1. Storage URI direct / stories.json (e.g. C:\Users\DINUWA\Desktop\Reserach resources\Requirement-Traceability-Engine\.rte\stories.json)
+    // 2. Explicit canonical engine path
+    // 3. Workspace override (.rte/stories.json)
+    // 4. Workspace root (stories.json)
+    // 5. Extension storage subpath (.rte/stories.json)
+    const candidates: vscode.Uri[] = [
+      rteStorageUri.fsPath.endsWith("stories.json")
+        ? rteStorageUri
+        : vscode.Uri.joinPath(rteStorageUri, "stories.json"),
+      vscode.Uri.file("C:/Users/DINUWA/Desktop/Reserach resources/Requirement-Traceability-Engine/.rte/stories.json"),
+      vscode.Uri.joinPath(workspaceUri, ".rte", "stories.json"),
+      vscode.Uri.joinPath(workspaceUri, "stories.json"),
+      vscode.Uri.joinPath(rteStorageUri, ".rte", "stories.json"),
+    ];
+
+    for (const uri of candidates) {
+      try {
+        const raw = await vscode.workspace.fs.readFile(uri);
+        const parsed = JSON.parse(new TextDecoder().decode(raw));
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          console.log(`[RTE StoryManager] Successfully read ${parsed.length} stories from ${uri.fsPath}`);
+          this.cachedStories = parsed;
+          return this.cachedStories;
         }
+      } catch {
+        // Candidate file does not exist at this path, proceed to next candidate
       }
     }
 
+    console.warn("[RTE StoryManager] No valid stories.json found across candidates; using default fallback.");
     this.cachedStories = DEFAULT_SPRINT_STORIES;
     return this.cachedStories;
   }

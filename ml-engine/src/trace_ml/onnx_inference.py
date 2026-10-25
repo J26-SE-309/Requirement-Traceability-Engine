@@ -1,8 +1,4 @@
 """Local INT8 ONNX Inference Engine for Sentence Embeddings.
-
-Provides CPU-optimized inference for all-MiniLM-L6-v2 with mean pooling,
-L2 unit-norm normalization, cosine similarity computation, and runtime benchmarking.
-Zero cloud dependencies, sub-50ms CPU execution budget.
 """
 
 from __future__ import annotations
@@ -51,16 +47,16 @@ class ONNXEmbedder:
                 "Run `python -m trace_ml.quantize` to fetch tokenizer artifacts."
             )
 
-        # Initialize fast Rust tokenizer with dynamic padding
+     
         self.tokenizer = Tokenizer.from_file(str(self.tokenizer_path))
         self.tokenizer.enable_truncation(max_length=self.max_length)
         self.tokenizer.enable_padding(length=None)
 
-        # Configure ONNX Runtime Session targeting CPUExecutionProvider
+        
         opts = ort.SessionOptions()
         opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
         opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
-        # Limit intra-op threads to avoid saturating CPU
+   
         num_threads = max(1, min(4, (os.cpu_count() or 4) // 2))
         opts.intra_op_num_threads = num_threads
         opts.inter_op_num_threads = 1
@@ -74,7 +70,7 @@ class ONNXEmbedder:
         input_names = [inp.name for inp in self.session.get_inputs()]
         self.has_token_type_ids = "token_type_ids" in input_names
 
-        # Warm up session with a few forward passes
+        
         self._warmup()
 
     def _warmup(self) -> None:
@@ -95,41 +91,27 @@ class ONNXEmbedder:
     @staticmethod
     def mean_pooling(token_embeddings: np.ndarray, attention_mask: np.ndarray) -> np.ndarray:
         """Compute mean pooling over token embeddings taking attention mask into account.
-
-        Args:
-            token_embeddings: Array of shape (batch_size, seq_len, hidden_dim).
-            attention_mask: Array of shape (batch_size, seq_len).
-
-        Returns:
-            Mean-pooled and L2-normalized array of shape (batch_size, hidden_dim).
         """
-        # Expand mask for broadcasting: (batch_size, seq_len, 1)
+       
         input_mask_expanded = np.expand_dims(attention_mask, -1).astype(np.float32)
         sum_embeddings = np.sum(token_embeddings * input_mask_expanded, axis=1)
         sum_mask = np.clip(input_mask_expanded.sum(axis=1), a_min=1e-9, a_max=None)
         pooled = sum_embeddings / sum_mask
 
-        # L2 unit-norm normalization
+    
         norm = np.linalg.norm(pooled, ord=2, axis=1, keepdims=True)
         norm = np.clip(norm, a_min=1e-12, a_max=None)
         return pooled / norm
 
     def embed(self, texts: Union[str, Sequence[str]]) -> np.ndarray:
-        """Compute 384-dimensional normalized sentence embeddings for input texts.
-
-        Args:
-            texts: Single string or sequence of text strings.
-
-        Returns:
-            np.ndarray of shape (N, 384) with L2-normalized float32 vectors.
-        """
+        
         is_single = isinstance(texts, str)
         text_list = [texts] if is_single else list(texts)
 
         if not text_list:
             return np.empty((0, 384), dtype=np.float32)
 
-        # Batch tokenization
+     
         encodings = self.tokenizer.encode_batch(text_list)
         batch_ids = [enc.ids for enc in encodings]
         batch_mask = [enc.attention_mask for enc in encodings]
@@ -149,7 +131,7 @@ class ONNXEmbedder:
         return normalized_embeddings
 
     def embed_single(self, text: str) -> np.ndarray:
-        """Embed single text string returning 1D array of shape (384,)."""
+        
         embs = self.embed(text)
         return embs[0]
 
@@ -159,8 +141,6 @@ def calculate_cosine_similarity(
     vec_b: np.ndarray | Sequence[float],
 ) -> float:
     """Calculate cosine similarity between two vectors.
-
-    Values range from -1.0 to 1.0. For L2-normalized vectors this is equivalent to dot product.
     """
     a = np.asarray(vec_a, dtype=np.float32).flatten()
     b = np.asarray(vec_b, dtype=np.float32).flatten()

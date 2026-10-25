@@ -5,6 +5,7 @@ Sets up PYTHONPATH automatically for both backend/ and ml-engine/src/,
 then launches the FastAPI Uvicorn server on http://127.0.0.1:8000.
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -14,6 +15,11 @@ ml_engine_dir = repo_root / "ml-engine" / "src"
 
 sys.path.insert(0, str(backend_dir))
 sys.path.insert(0, str(ml_engine_dir))
+
+
+
+existing_pp = os.environ.get("PYTHONPATH", "")
+os.environ["PYTHONPATH"] = f"{backend_dir}{os.pathsep}{ml_engine_dir}{os.pathsep}{existing_pp}".strip(os.pathsep)
 
 import uvicorn
 

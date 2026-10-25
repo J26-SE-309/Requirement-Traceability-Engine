@@ -5,7 +5,7 @@
  *  - Sprint Backlog Sidebar Webview (Left panel)
  *  - Cytoscape Sub-Graph Webview (Right panel)
  *  - Inline CodeLens Provider & Quick-Fix Lightbulb CodeAction Provider
- *  - Pre-commit verification gate & Figma-spec status bar telemetry
+ *  - Pre-commit verification gate & real-time status bar telemetry
  */
 
 import * as vscode from "vscode";
@@ -18,37 +18,62 @@ import { TraceGraphPanelProvider } from "./providers/graphPanel";
 import { TraceCodeActionProvider } from "./providers/traceCodeAction";
 import { TraceCodeLensProvider } from "./providers/traceCodeLens";
 import { StoryManager } from "./stories/storyManager";
+import { setExtensionContext } from "./utils/workspaceRoot";
 
 let statusBarBackend: vscode.StatusBarItem;
 let statusBarTelemetry: vscode.StatusBarItem;
 let statusBarPrivacy: vscode.StatusBarItem;
 let statusBarGate: vscode.StatusBarItem;
 
-export function updateTelemetryBar(latencyMs: number, symbolCount: number): void {
+/**
+ * Updates the status bar with real measured inference latency, AST symbol count, and host RSS memory.
+ */
+export function updateTelemetryBar(
+  latencyMs: number,
+  symbolCount: number,
+  memoryMb?: number
+): void {
   if (statusBarTelemetry) {
-    statusBarTelemetry.text = `$(zap) RTE: ${latencyMs.toFixed(1)}ms | RAM: ${Math.round(21.8 + symbolCount * 0.45)}MB | INT8 SBERT`;
-    statusBarTelemetry.tooltip = `Local CPU Inference: ${latencyMs.toFixed(1)}ms | Memory: ${Math.round(21.8 + symbolCount * 0.45)}MB | INT8 ONNX MiniLM (21.84MB)`;
+    const rssMb = memoryMb ?? Math.round(process.memoryUsage().rss / (1024 * 1024));
+    statusBarTelemetry.text = `$(zap) RTE: ${latencyMs.toFixed(1)}ms | Symbols: ${symbolCount} | RSS: ${rssMb}MB | INT8 SBERT`;
+    statusBarTelemetry.tooltip = `Live CPU Inference: ${latencyMs.toFixed(2)}ms | Parsed AST Symbols: ${symbolCount} | Host Memory RSS: ${rssMb}MB`;
+  }
+}
+
+/**
+ * Updates the Pre-Commit Quality Gate status bar indicator based on live check results.
+ */
+export function updatePrecommitGateBar(passed: boolean, details?: string): void {
+  if (statusBarGate) {
+    statusBarGate.text = passed
+      ? "$(pass-filled) Pre-Commit: PASSED"
+      : "$(error) Pre-Commit: BLOCKED";
+    statusBarGate.tooltip = details || "Click to run staged Git commit verification check";
   }
 }
 
 export function activate(context: vscode.ExtensionContext): void {
   console.log("Activating Requirement Traceability Engine (RTE) extension...");
 
+  // Capture ExtensionContext to dynamically resolve extension root and .rte storage
+  setExtensionContext(context);
+
   // =========================================================================
-  // 1. Status Bar Telemetry (Matching Figma Design Specification)
+  // 1. Status Bar Telemetry
   // =========================================================================
 
-  // Footer Item 1: Engine Telemetry (Latency, RAM, Quantized Model)
+  // Footer Item 1: Engine Telemetry (Live Latency, Symbols, RSS Memory)
   statusBarTelemetry = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-  statusBarTelemetry.text = "$(zap) RTE: Ready | RAM: 22MB | INT8 SBERT";
-  statusBarTelemetry.tooltip = "Local CPU Inference: P95 <= 350ms | INT8 ONNX Model Footprint: 21.84MB";
+  const initialRssMb = Math.round(process.memoryUsage().rss / (1024 * 1024));
+  statusBarTelemetry.text = `$(zap) RTE: Ready | RSS: ${initialRssMb}MB | INT8 SBERT`;
+  statusBarTelemetry.tooltip = "Local CPU Inference (all-MiniLM-L6-v2 INT8 ONNX)";
   statusBarTelemetry.show();
   context.subscriptions.push(statusBarTelemetry);
 
   // Footer Item 2: Zero-Cloud Privacy Guarantee
   statusBarPrivacy = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 99);
   statusBarPrivacy.text = "$(shield) Privacy: 0 Network Calls";
-  statusBarPrivacy.tooltip = "100% on-device INT8 ONNX runtime. Zero code transmitted off-machine.";
+  statusBarPrivacy.tooltip = "100% on-device INT8 ONNX runtime (127.0.0.1 loopback only). Zero code transmitted off-machine.";
   statusBarPrivacy.show();
   context.subscriptions.push(statusBarPrivacy);
 
@@ -62,7 +87,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Footer Item 4: Pre-Commit Quality Gate Status
   statusBarGate = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-  statusBarGate.text = "$(pass-filled) Pre-Commit: PASSED";
+  statusBarGate.text = "$(shield) Pre-Commit: Verify";
   statusBarGate.command = "rte.precommitCheck";
   statusBarGate.tooltip = "Click to run staged Git commit verification check";
   statusBarGate.show();
@@ -75,7 +100,6 @@ export function activate(context: vscode.ExtensionContext): void {
   }, 5000);
   context.subscriptions.push({ dispose: () => clearInterval(healthInterval) });
 
-
   // =========================================================================
   // 2. Language Providers (Python & TypeScript)
   // =========================================================================
@@ -84,7 +108,6 @@ export function activate(context: vscode.ExtensionContext): void {
     { language: "python" },
     { language: "typescript" },
   ];
-
 
   // Inline CodeLens Provider
   const codeLensProvider = new TraceCodeLensProvider();
@@ -123,7 +146,32 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(graphDisposable);
 
   // =========================================================================
-  // 4. Commands Registration
+  // 4. Dynamic Workspace & Editor Change Listeners
+  // =========================================================================
+
+  // Automatically reload project root and stories when workspace folders or storiesPath setting change
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(async () => {
+      await StoryManager.getInstance().reloadStories();
+      codeLensProvider.refresh();
+      backlogProvider.updateBacklog();
+      graphProvider.updateViewport();
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(async (e) => {
+      if (e.affectsConfiguration("rte.storiesPath")) {
+        await StoryManager.getInstance().reloadStories();
+        backlogProvider.updateBacklog();
+        graphProvider.updateViewport();
+        codeLensProvider.refresh();
+      }
+    })
+  );
+
+  // =========================================================================
+  // 5. Commands Registration
   // =========================================================================
 
   // Command: rte.refreshTrace
@@ -150,11 +198,14 @@ export function activate(context: vscode.ExtensionContext): void {
   });
   context.subscriptions.push(precommitCmd);
 
-  // Command: rte.scaffoldStoryFiles
+  // Command: rte.scaffoldStoryFiles (and alias rte.scaffoldStory)
   const scaffoldCmd = vscode.commands.registerCommand(
     "rte.scaffoldStoryFiles",
     async (targetStoryId?: string) => {
       await runScaffoldStoryCommand(targetStoryId);
+      codeLensProvider.refresh();
+      backlogProvider.updateBacklog();
+      graphProvider.updateViewport();
     }
   );
   context.subscriptions.push(scaffoldCmd);
@@ -178,7 +229,6 @@ export function activate(context: vscode.ExtensionContext): void {
       }
 
       const items: vscode.QuickPickItem[] = [];
-
 
       items.push({
         label: `$(symbol-function) Function: ${fn.qualified_name || fn.name}`,

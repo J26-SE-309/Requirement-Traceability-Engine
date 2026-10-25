@@ -1,7 +1,4 @@
 """Internal lightweight FastAPI service for ONNX inference.
-
-Provides microservice HTTP interface when ML engine is deployed separately from backend.
-Zero cloud dependencies, sub-50ms execution.
 """
 
 from __future__ import annotations

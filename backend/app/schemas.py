@@ -1,7 +1,4 @@
 """Request and response models: the API contract of this service.
-
-They mirror the JSON Schemas in Synapse-Web/contracts/traceability;
-extended with behavioral call-graph links and deterministic Acceptance Criteria evaluations.
 """
 
 from __future__ import annotations
@@ -157,3 +154,27 @@ class ScaffoldNamingResponse(BaseModel):
     test_file: str
     confidence: float
     top_candidates: list[str] = Field(default_factory=list)
+
+
+class GeneratedFunctionSpec(BaseModel):
+    name: str
+    criterion: str
+    signature: str
+    description: str
+
+
+class ScaffoldGenerateRequest(BaseModel):
+    story_id: str
+    user_story: str
+    acceptance_criteria: list[str] = Field(default_factory=list)
+
+
+class ScaffoldGenerateResponse(BaseModel):
+    story_id: str
+    module_name: str
+    implementation_file: str
+    test_file: str
+    implementation_code: str
+    test_code: str
+    functions: list[GeneratedFunctionSpec] = Field(default_factory=list)
+    confidence: float

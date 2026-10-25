@@ -1,8 +1,4 @@
 """Python AST Parser for Requirement Traceability Engine.
-
-Extracts functions, async functions, methods, signatures, docstrings,
-call-graph invocations, explicit '# Trace: <STORY-ID>' comment directives,
-and classifies symbols into production code vs. test fixtures with verifiable assertions.
 """
 
 from __future__ import annotations
@@ -18,12 +14,7 @@ from typing import Literal
 
 logger = logging.getLogger(__name__)
 
-# Regex for explicit traceability comment directives
-# Matches:
-#   # Trace: STORY-101
-#   # @trace STORY-102
-#   # trace: S-1, S-2
-#   # @trace: STORY_3
+
 TRACE_DIRECTIVE_PATTERN = re.compile(
     r"#\s*(?:@trace|Trace|trace):?\s*([A-Za-z0-9_,\s\-]+)",
     re.IGNORECASE,
@@ -36,18 +27,12 @@ TEST_FILE_PATTERN = re.compile(
 
 
 def split_identifier(name: str) -> str:
-    """Split snake_case and camelCase identifiers into space-delimited natural words.
-
-    Examples:
-        'verify_jwt_token' -> 'verify jwt token'
-        'calculateStateTax' -> 'calculate state tax'
-        'HTTPResponseHandler' -> 'http response handler'
-    """
-    # 1. Handle consecutive uppercase abbreviations: 'HTTPResponse' -> 'HTTP Response'
+    """Split snake_case and camelCase identifiers """
+   
     s1 = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", name)
-    # 2. Handle standard camelCase transitions: 'stateTax' -> 'state Tax'
+
     s2 = re.sub(r"([a-z\d])([A-Z])", r"\1 \2", s1)
-    # 3. Replace underscores with spaces and normalize casing
+ 
     return s2.replace("_", " ").strip().lower()
 
 
@@ -103,7 +88,7 @@ class ParsedSymbol:
 
     @property
     def start_line(self) -> int:
-        """Alias for backward compatibility."""
+        
         return self.line_start
 
     @start_line.setter
@@ -112,7 +97,7 @@ class ParsedSymbol:
 
     @property
     def end_line(self) -> int:
-        """Alias for backward compatibility."""
+       
         return self.line_end
 
     @end_line.setter
@@ -120,11 +105,11 @@ class ParsedSymbol:
         self.line_end = val
 
     def contains_line(self, line_number: int) -> bool:
-        """Check if 1-indexed line_number is within symbol span."""
+        
         return self.line_start <= line_number <= self.line_end
 
 
-# Backward-compatible alias
+
 ParsedFunction = ParsedSymbol
 
 
@@ -170,7 +155,7 @@ def _has_test_assertions(node: ast.AST) -> bool:
 
 
 def _extract_called_symbols(node: ast.AST) -> list[str]:
-    """Traverse AST to extract all function and method invocations called inside body."""
+  
     calls: list[str] = []
     for sub in ast.walk(node):
         if isinstance(sub, ast.Call):
@@ -178,7 +163,7 @@ def _extract_called_symbols(node: ast.AST) -> list[str]:
             if isinstance(func, ast.Name):
                 calls.append(func.id)
             elif isinstance(func, ast.Attribute):
-                # Captures method calls: obj.verify_jwt_token() -> 'verify_jwt_token'
+               
                 calls.append(func.attr)
 
     seen: set[str] = set()
@@ -186,7 +171,7 @@ def _extract_called_symbols(node: ast.AST) -> list[str]:
 
 
 def _build_signature(node: ast.FunctionDef | ast.AsyncFunctionDef, source_lines: list[str]) -> str:
-    """Extract or rebuild the function signature string."""
+   
     try:
         def_line = source_lines[node.lineno - 1].strip()
         if ":" in def_line:
@@ -207,14 +192,11 @@ def _build_semantic_text(
     args: list[str],
     called_symbols: list[str],
 ) -> str:
-    """Formulate high-density semantic text for INT8 Sentence-BERT embedding.
-
-    Normalizes identifiers and focuses on domain vocabulary to maximize cosine similarity.
-    """
+    """Normalizes identifiers and focuses on domain vocabulary to maximize cosine similarity."""
     natural_name = split_identifier(name)
     parts: list[str] = [f"Function {natural_name}"]
 
-    # Include parameter terms
+    
     clean_params = [
         split_identifier(arg)
         for arg in args
@@ -227,7 +209,7 @@ def _build_semantic_text(
         clean_doc = " ".join(docstring.split())
         parts.append(f"Description: {clean_doc}")
 
-    # Include called dependencies (adds contextual domain terms)
+  
     domain_calls = [
         split_identifier(c)
         for c in called_symbols[:6]
@@ -238,7 +220,7 @@ def _build_semantic_text(
 
     parts.append(f"Signature: {signature}")
 
-    # Extract non-comment executable implementation lines
+    
     snippet_lines = [
         line.strip()
         for line in code_snippet.splitlines()
@@ -251,13 +233,71 @@ def _build_semantic_text(
     return " | ".join(parts)
 
 
+
+
+
+def _build_semantic_views(
+    name: str,
+    docstring: str | None,
+    args: list[str],
+    called_symbols: list[str],
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> list[str]:
+    """Decompose function AST into clean natural-language semantic views for AC vector matching."""
+    views: list[str] = []
+    natural_name = split_identifier(name)
+    clean_params = [split_identifier(a) for a in args if a not in ("self", "cls", "args", "kwargs")]
+
+    
+    doc_clean = " ".join(docstring.split()) if docstring else ""
+    if doc_clean:
+        views.append(f"{natural_name}: {doc_clean}")
+        
+        for line in docstring.splitlines():
+            clean_line = line.strip().lstrip("-*• ")
+            if len(clean_line) > 10:
+                views.append(clean_line)
+
+   
+    param_str = f" with {', '.join(clean_params)}" if clean_params else ""
+    views.append(f"{natural_name}{param_str}")
+
+    
+    domain_calls = [
+        split_identifier(c)
+        for c in called_symbols
+        if not c.startswith("_") and c not in ("print", "len", "range", "isinstance", "int", "str", "float")
+    ]
+    if domain_calls:
+        views.append(f"{natural_name} invokes {', '.join(domain_calls)}")
+
+    
+    raised_names: list[str] = []
+    constants: list[str] = []
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Raise) and sub.exc:
+            if isinstance(sub.exc, ast.Call) and isinstance(sub.exc.func, ast.Name):
+                raised_names.append(split_identifier(sub.exc.func.id))
+            elif isinstance(sub.exc, ast.Name):
+                raised_names.append(split_identifier(sub.exc.id))
+        elif isinstance(sub, ast.Constant) and isinstance(sub.value, (str, int, float)):
+            val_str = str(sub.value).strip()
+            if 1 < len(val_str) <= 40 and not val_str.startswith("http"):
+                constants.append(val_str)
+
+    if raised_names:
+        views.append(f"Raises error {' '.join(raised_names)} when validation fails")
+    if constants:
+        views.append(f"{natural_name} handles constants {' '.join(constants[:8])}")
+
+    return list(dict.fromkeys(views))
+
+
 def parse_python_symbols(
     file_path: Path | str = "",
     source_code: str | None = None,
 ) -> list[ParsedSymbol]:
     """Parse Python source or file into AST symbols safely.
-
-    Catches SyntaxError gracefully so in-progress edits don't crash callers.
     """
     file_str = str(file_path) if file_path else ""
 
@@ -279,7 +319,7 @@ def parse_python_symbols(
 
     parsed_symbols: list[ParsedSymbol] = []
 
-    # Map line number to comments
+    
     comment_map: dict[int, list[str]] = {}
     for lineno, comment in comments:
         comment_map.setdefault(lineno, []).append(comment)
@@ -316,16 +356,16 @@ def parse_python_symbols(
             code_snippet = "\n".join(slice_lines)
             sig = _build_signature(node, source_lines)
 
-            # Explicit trace directives
+          
             explicit_traces: list[str] = []
 
-            # 1. Comments immediately above the function header (up to 3 lines above start_line)
+           
             for line_idx in range(max(1, start_line - 3), start_line):
                 for comm in comment_map.get(line_idx, []):
                     traces = _extract_story_ids_from_comment(comm)
                     explicit_traces.extend(traces)
 
-            # 2. Comments within the function body
+           
             for line_idx in range(start_line, end_line + 1):
                 for comm in comment_map.get(line_idx, []):
                     traces = _extract_story_ids_from_comment(comm)
@@ -334,7 +374,7 @@ def parse_python_symbols(
             seen = set()
             unique_traces = [t for t in explicit_traces if not (t in seen or seen.add(t))]
 
-            # Kind classification: test vs code
+            
             is_test_symbol = (
                 node.name.startswith("test_")
                 or node.name.endswith("_test")
@@ -348,7 +388,7 @@ def parse_python_symbols(
             kind: Literal["code", "test"] = "test" if is_test_symbol else "code"
             has_assertions = _has_test_assertions(node)
 
-            # Extract called functions and method names for call-graph linking
+            
             called_symbols = _extract_called_symbols(node)
 
             args = [a.arg for a in node.args.args]
@@ -385,7 +425,7 @@ def parse_python_symbols(
         visitor.visit(tree)
     except SyntaxError as e:
         logger.warning("SyntaxError parsing %s: %s (initiating resilient symbol recovery)", file_str or "<source>", e)
-        # Resilient block-by-block parsing for in-progress edits
+        
         top_indices: list[int] = []
         for idx, line in enumerate(source_lines):
             if (line.startswith("def ") or line.startswith("async def ") or line.startswith("class ") or line.startswith("@")) and not line.startswith(" "):
@@ -401,12 +441,15 @@ def parse_python_symbols(
             for i in range(len(top_indices) - 1):
                 start_idx = top_indices[i]
                 end_idx = top_indices[i + 1]
-                padded_block = ("\n" * start_idx) + "\n".join(source_lines[start_idx:end_idx])
+                block_str = "\n".join(source_lines[start_idx:end_idx])
+                if re.search(r":\s*$", block_str.rstrip()):
+                    block_str = block_str.rstrip() + "\n    pass"
+                padded_block = ("\n" * start_idx) + block_str
                 try:
                     block_tree = ast.parse(padded_block)
                     visitor.visit(block_tree)
                 except Exception:
-                    # Regex fallback for the specific block containing the syntax error
+                    
                     first_line = source_lines[start_idx].strip()
                     m = re.match(r"^(?:async\s+)?def\s+([a-zA-Z0-9_]+)\s*\((.*?)\)", first_line)
                     if m:

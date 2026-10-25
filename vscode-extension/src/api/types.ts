@@ -85,6 +85,7 @@ export interface GraphRequest {
 
 export interface CytoscapeElementData {
   id: string;
+  name?: string;
   label?: string;
   type?: "story" | "function" | "test";
   status?: string;
@@ -93,6 +94,9 @@ export interface CytoscapeElementData {
   target?: string;
   similarity?: number;
   has_assertion?: boolean;
+  file_path?: string;
+  line_start?: number;
+  symbol_name?: string;
 }
 
 export interface CytoscapeElement {
@@ -103,12 +107,19 @@ export interface CytoscapeGraph {
   elements: CytoscapeElement[];
 }
 
+export interface ACStatusItem {
+  criterion: string;
+  satisfied: boolean;
+  similarity: number;
+  evidence_symbol?: string | null;
+}
+
 export interface GraphResponse {
   graph: CytoscapeGraph;
   active_function?: string | null;
   story_id?: string | null;
   user_story?: string | null;
-  ac_statuses?: unknown[];
+  ac_statuses?: ACStatusItem[];
   latency_ms?: number;
   analysed_at: string;
 }
@@ -127,3 +138,28 @@ export interface ScaffoldNamingResponse {
   confidence: number;
   top_candidates: string[];
 }
+
+export interface GeneratedFunctionSpec {
+  name: string;
+  criterion: string;
+  signature: string;
+  description: string;
+}
+
+export interface ScaffoldGenerateRequest {
+  story_id: string;
+  user_story: string;
+  acceptance_criteria?: string[];
+}
+
+export interface ScaffoldGenerateResponse {
+  story_id: string;
+  module_name: string;
+  implementation_file: string;
+  test_file: string;
+  implementation_code: string;
+  test_code: string;
+  functions: GeneratedFunctionSpec[];
+  confidence: number;
+}
+

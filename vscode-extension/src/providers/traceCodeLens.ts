@@ -157,19 +157,25 @@ export class TraceCodeLensProvider implements vscode.CodeLensProvider {
         }
 
         const assertPassed = fn.has_test_assertion || fn.status === "VERIFIED";
-        const assertLabel = assertPassed ? "Assertions Passed" : "Missing Assertions";
         const testStoryId = fn.matched_story_id || (storyId !== "Unlinked" ? storyId : "STORY-101");
 
-        title = `🧪 CodeLens: Test Fixture for ${targetSymbol}() -> ${testStoryId} (${assertLabel})   [View Rationale]`;
+        if (assertPassed) {
+          title = `🟢 [VERIFIED TEST] ${targetSymbol}() ➔ ${testStoryId} (Assertions Verified)  [View Rationale]`;
+        } else {
+          title = `🟡 [MISSING TEST ASSERTION] ${targetSymbol}() ➔ ${testStoryId}  [View Rationale]`;
+        }
       } else {
         if (fn.status === "VERIFIED") {
-          title = `🔗 CodeLens: Traced to ${storyId} via ${engineLabel} (Cosine Sim: ${simStr})   [View Rationale]`;
+          const verifyNote = fn.linked_test_symbol
+            ? `Verified by ${fn.linked_test_symbol}()`
+            : `Cosine Sim: ${simStr}`;
+          title = `🟢 [VERIFIED] ${storyId} via ${engineLabel} (${verifyNote})  [View Rationale]`;
         } else if (fn.status === "MISSING_TEST") {
-          title = `⚠️ CodeLens: Traced to ${storyId} | Test: ❌ Missing Assertion (Cosine Sim: ${simStr})   [View Rationale]`;
+          title = `🟡 [MISSING TEST] ${storyId} | Test: ❌ Missing Assertion (${simStr})  [View Rationale]`;
         } else if (fn.status === "CANDIDATE") {
-          title = `🔍 CodeLens: Candidate ${storyId} (Cosine Sim: ${simStr})   [View Rationale]`;
+          title = `🔵 [CANDIDATE] ${storyId} (Cosine Sim: ${simStr})  [View Rationale]`;
         } else {
-          title = `⚠️ CodeLens: Unlinked Function (Best match: ${storyId} at ${simStr})   [Link Story]`;
+          title = `⚪ [UNLINKED] Function (Best Match: ${storyId} at ${simStr})  [Link Story]`;
         }
       }
 

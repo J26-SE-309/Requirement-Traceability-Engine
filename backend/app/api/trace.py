@@ -306,7 +306,7 @@ def is_function_tested_by(test_func: ParsedFunction, prod_func: ParsedFunction) 
     if prod_func.name in called:
         return True
 
-    if test_func.name == f"test_{prod_func.name}":
+    if test_func.name == f"test_{prod_func.name}" or test_func.name.startswith(f"test_{prod_func.name}"):
         return True
 
     return False
@@ -331,17 +331,17 @@ def evaluate_acceptance_criteria(
         best_symbol: str | None = None
         clean_ac = ac.lower()
 
-        # 1. First pass: High-confidence direct string/keyword presence in code or docstrings
+        
         for func in functions:
             content = f"{func.name} {func.docstring or ''} {func.code_snippet}".lower()
-            # If docstring or test explicitly quotes the criterion phrase
+            
             clean_sub = clean_ac.split(":", 1)[-1].strip() if ":" in clean_ac else clean_ac
             if clean_sub and clean_sub in content:
                 best_sim = 1.0
                 best_symbol = func.name
                 break
 
-        # 2. Second pass: Dense semantic vector comparison via ONNX embedder
+        
         if best_sim < 1.0 and embedder is not None:
             try:
                 ac_vec = embedder.embed_single(ac)
@@ -354,7 +354,7 @@ def evaluate_acceptance_criteria(
             except Exception as e:
                 logger.debug("AC embedding comparison failed for '%s': %s", ac, e)
 
-        # An AC is satisfied if it scores >= 0.65 similarity or had a direct keyword hit
+        
         is_satisfied = best_sim >= 0.65
         results.append(
             ACStatus(
@@ -378,10 +378,10 @@ def evaluate_function_against_stories(
 ) -> tuple[FunctionTraceStatus, StoryRef | None]:
     """Match a function against stories, checking explicit tags, AST calls, and semantic similarity."""
     settings = get_settings()
-    high_threshold = settings.confidence_high    # default 0.80
-    medium_threshold = settings.confidence_medium  # default 0.65
+    high_threshold = settings.confidence_high    
+    medium_threshold = settings.confidence_medium  
 
-    # 1. Check explicit # Trace: <STORY-ID> directives
+    
     matched_story: StoryRef | None = None
     if func.explicit_traces:
         for st in stories:
@@ -396,7 +396,7 @@ def evaluate_function_against_stories(
         if func.kind == "code" and available_tests:
             for t in available_tests:
                 story_tagged = matched_story.story_id in t.explicit_traces
-                # Call-graph behavioral check: test must call this function or share tag + call
+                
                 if (story_tagged or is_function_tested_by(t, func)) and is_function_tested_by(t, func):
                     has_linked_test = True
                     linked_test_name = t.name
@@ -434,7 +434,7 @@ def evaluate_function_against_stories(
             matched_story,
         )
 
-    # 2. Semantic matching via ONNX Embeddings
+    
     best_similarity = -1.0
     best_story: StoryRef | None = None
 
@@ -455,7 +455,7 @@ def evaluate_function_against_stories(
 
     best_similarity = max(-1.0, min(1.0, round(best_similarity, 4)))
 
-    # 3. Classify Tripartite Status
+    
     if best_similarity >= high_threshold and best_story is not None:
         has_test = False
         linked_test_name = None
@@ -622,7 +622,7 @@ def coverage(request: CoverageRequest) -> CoverageResponse:
         test_artifacts = [a for a in artifacts if a.kind == "test"]
         has_tests = len(test_artifacts) > 0
 
-        # Coverage percentage calculation
+        
         if code_artifacts and has_tests:
             coverage_pct = 1.0
         elif code_artifacts and not has_tests:
@@ -638,7 +638,7 @@ def coverage(request: CoverageRequest) -> CoverageResponse:
         elif not has_tests:
             gaps.append(f"Story {st.story_id} has code implementations ({len(code_artifacts)} symbols) but lacks test assertions.")
 
-        # Compute deterministic acceptance criteria coverage
+        
         ac_statuses = evaluate_acceptance_criteria(st, functions_to_analyze, embedder=embedder)
 
         items.append(
@@ -658,6 +658,79 @@ def coverage(request: CoverageRequest) -> CoverageResponse:
     return CoverageResponse(items=items)
 
 
+def discover_associated_functions(p: Path) -> tuple[list[ParsedFunction], list[ParsedFunction]]:
+    """Discovers associated test and implementation functions across the project.
+    """
+    extra_tests: list[ParsedFunction] = []
+    extra_code: list[ParsedFunction] = []
+
+    stem = p.stem
+    parent = p.parent
+
+    test_candidates: list[Path] = []
+    code_candidates: list[Path] = []
+
+    is_test_file = stem.startswith("test_") or stem.endswith("_test") or "tests" in p.parts
+
+    if not is_test_file:
+        test_candidates.extend([
+            parent.parent / "tests" / f"test_{stem}.py",
+            parent / "tests" / f"test_{stem}.py",
+            parent / f"test_{stem}.py",
+            parent.parent / f"test_{stem}.py",
+        ])
+    else:
+        raw_name = stem
+        if raw_name.startswith("test_"):
+            raw_name = raw_name[5:]
+        elif raw_name.endswith("_test"):
+            raw_name = raw_name[:-5]
+
+        code_candidates.extend([
+            parent.parent / "src" / f"{raw_name}.py",
+            parent / "src" / f"{raw_name}.py",
+            parent.parent / f"{raw_name}.py",
+            parent / f"{raw_name}.py",
+        ])
+
+    for tc in test_candidates:
+        if tc.exists() and tc.is_file():
+            try:
+                extra_tests.extend(parse_python_file(tc))
+            except Exception as e:
+                logger.debug("Failed parsing test candidate %s: %s", tc, e)
+
+    for cc in code_candidates:
+        if cc.exists() and cc.is_file():
+            try:
+                extra_code.extend(parse_python_file(cc))
+            except Exception as e:
+                logger.debug("Failed parsing code candidate %s: %s", cc, e)
+
+    if not extra_tests and not is_test_file:
+        tests_dir = parent.parent / "tests" if (parent.parent / "tests").exists() else (parent / "tests" if (parent / "tests").exists() else None)
+        if tests_dir and tests_dir.is_dir():
+            for tf in tests_dir.glob("test_*.py"):
+                if tf.is_file() and tf != p:
+                    try:
+                        extra_tests.extend(parse_python_file(tf))
+                    except Exception:
+                        pass
+
+    if not extra_code and is_test_file:
+        src_dir = parent.parent / "src" if (parent.parent / "src").exists() else (parent / "src" if (parent / "src").exists() else None)
+        if src_dir and src_dir.is_dir():
+            for cf in src_dir.glob("*.py"):
+                if cf.is_file() and cf.name != "__init__.py" and cf != p:
+                    try:
+                        extra_code.extend(parse_python_file(cf))
+                    except Exception:
+                        pass
+
+    return extra_tests, extra_code
+
+
+@router.post("/file", response_model=FileTraceResponse)
 @router.post("/trace/file", response_model=FileTraceResponse)
 def trace_file(request: FileTraceRequest) -> FileTraceResponse:
     """Analyze a single file for CodeLens decorations and viewport filtering."""
@@ -686,7 +759,9 @@ def trace_file(request: FileTraceRequest) -> FileTraceResponse:
         except Exception as e:
             logger.warning("Story embedding failed: %s", e)
 
-    test_functions = [f for f in functions if f.kind == "test"]
+    extra_tests, extra_code = discover_associated_functions(p)
+    all_context = list(functions) + extra_tests + extra_code
+    test_functions = [f for f in all_context if f.kind == "test"]
     traced_functions: list[FunctionTraceStatus] = []
 
     for func in functions:
@@ -695,7 +770,7 @@ def trace_file(request: FileTraceRequest) -> FileTraceResponse:
             effective_stories,
             story_embeddings=story_embeddings,
             available_tests=test_functions,
-            all_context_functions=functions,
+            all_context_functions=all_context,
             embedder=embedder,
         )
         traced_functions.append(trace_status)
@@ -711,6 +786,7 @@ def trace_file(request: FileTraceRequest) -> FileTraceResponse:
     )
 
 
+@router.post("/graph", response_model=GraphResponse)
 @router.post("/trace/graph", response_model=GraphResponse)
 def trace_graph(request: GraphRequest) -> GraphResponse:
     """Generate 3-node linear chain for the active function under cursor:
@@ -766,8 +842,10 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
         except Exception:
             pass
 
-    test_functions = [f for f in functions if f.kind == "test"]
-    code_functions = [f for f in functions if f.kind == "code"]
+    extra_tests, extra_code = discover_associated_functions(p)
+    all_context = list(functions) + extra_tests + extra_code
+    test_functions = [f for f in all_context if f.kind == "test"]
+    code_functions = [f for f in all_context if f.kind == "code"]
 
     prod_func: ParsedFunction | None = None
     test_func: ParsedFunction | None = None
@@ -775,32 +853,32 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
 
     if active_func.kind == "test":
         test_func = active_func
-        # 1. Resolve target production function via called_symbols
+        
         called_symbols = getattr(test_func, "called_symbols", []) or []
         for f in code_functions:
             if f.name in called_symbols:
                 prod_func = f
                 break
 
-        # 2. Resolve via test_<name> or test_<name>_* convention
+       
         if not prod_func:
             for f in code_functions:
                 if test_func.name == f"test_{f.name}" or test_func.name.startswith(f"test_{f.name}"):
                     prod_func = f
                     break
 
-        # 3. Resolve via shared explicit trace tag
+        
         if not prod_func and test_func.explicit_traces:
             for f in code_functions:
                 if any(tag in f.explicit_traces for tag in test_func.explicit_traces):
                     prod_func = f
                     break
 
-        # 4. Resolve if only one code function exists in file
+       
         if not prod_func and len(code_functions) == 1:
             prod_func = code_functions[0]
 
-        # 5. If no code function in this file, deduce production symbol name from called symbols or test name
+        
         if not prod_func:
             for sym in called_symbols:
                 if sym not in {"assert", "print", "len", "range", "pytest", "isinstance", "int", "str", "dict", "list"}:
@@ -811,18 +889,23 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
                 deduced_prod_name = cleaned or "target_function"
     else:
         prod_func = active_func
-        # Find linked test fixture testing this production function
+       
         for t in test_functions:
             if is_function_tested_by(t, prod_func):
                 test_func = t
                 break
+        if not test_func:
+            for t in test_functions:
+                if t.name == f"test_{prod_func.name}" or t.name.startswith(f"test_{prod_func.name}") or prod_func.name in getattr(t, "called_symbols", []):
+                    test_func = t
+                    break
         if not test_func and prod_func.explicit_traces:
             for t in test_functions:
                 if any(tag in t.explicit_traces for tag in prod_func.explicit_traces):
                     test_func = t
                     break
 
-    # Determine matched story and trace evaluation
+    
     matched_story: StoryRef | None = None
     trace_status: FunctionTraceStatus | None = None
 
@@ -832,24 +915,43 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
         effective_stories,
         story_embeddings=story_embeddings,
         available_tests=test_functions,
-        all_context_functions=functions,
+        all_context_functions=all_context,
         embedder=embedder,
     )
 
-    # If active test function had explicit tag, propagate story
+    
     if (not matched_story or trace_status.status == "ORPHAN") and test_func and test_func.explicit_traces:
-        for st in effective_stories:
-            if st.story_id in test_func.explicit_traces:
-                matched_story = st
-                trace_status.matched_story_id = st.story_id
-                trace_status.user_story = st.user_story
-                trace_status.acceptance_criteria = st.acceptance_criteria
-                trace_status.similarity = 1.0
-                trace_status.source = "tag"
-                break
+        # Crucial check: test_func MUST actually test prod_func or be active_func itself!
+        is_actually_tested = (
+            active_func.kind == "test"
+            or (prod_func and (
+                is_function_tested_by(test_func, prod_func)
+                or prod_func.name in getattr(test_func, "called_symbols", [])
+                or test_func.name == f"test_{prod_func.name}"
+                or (prod_func.explicit_traces and any(tag in test_func.explicit_traces for tag in prod_func.explicit_traces))
+            ))
+        )
+        if is_actually_tested:
+            for st in effective_stories:
+                if st.story_id in test_func.explicit_traces:
+                    matched_story = st
+                    trace_status.matched_story_id = st.story_id
+                    trace_status.user_story = st.user_story
+                    trace_status.acceptance_criteria = st.acceptance_criteria
+                    trace_status.similarity = 1.0
+                    trace_status.source = "tag"
+                    break
 
-    story_id = (matched_story.story_id if matched_story else None) or trace_status.matched_story_id or "UNLINKED"
-    user_story_text = (matched_story.user_story if matched_story else None) or trace_status.user_story
+    if trace_status and trace_status.status == "ORPHAN":
+        story_id = "UNLINKED"
+        user_story_text = None
+    else:
+        story_id = (matched_story.story_id if matched_story else None) or (
+            trace_status.matched_story_id if trace_status and trace_status.status != "ORPHAN" else None
+        ) or "UNLINKED"
+        user_story_text = (matched_story.user_story if matched_story else None) or (
+            trace_status.user_story if trace_status and trace_status.status != "ORPHAN" else None
+        )
 
     prod_name = prod_func.name if prod_func else (deduced_prod_name or active_func.name)
     has_test_assertion = False
@@ -864,7 +966,7 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
 
     elements: list[dict[str, Any]] = []
 
-    # Node 1: User Story
+    
     story_label = f"Story: {story_id}"
     if user_story_text:
         story_label += f"\n{user_story_text}"
@@ -877,8 +979,25 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
         }
     })
 
-    # Node 2: Implementation (Always the production function)
+    
     func_node_id = f"func_{prod_name}"
+    prod_file_path = getattr(prod_func, "file_path", "") if prod_func else ""
+    if not prod_file_path and not (p.stem.startswith("test_") or "tests" in p.parts):
+        prod_file_path = str(p)
+    elif not prod_file_path and extra_code:
+        prod_file_path = getattr(extra_code[0], "file_path", "")
+    if not prod_file_path and (p.stem.startswith("test_") or "tests" in p.parts):
+        raw_name = p.stem
+        if raw_name.startswith("test_"):
+            raw_name = raw_name[5:]
+        elif raw_name.endswith("_test"):
+            raw_name = raw_name[:-5]
+        cand = p.parent.parent / "src" / f"{raw_name}.py"
+        if cand.exists():
+            prod_file_path = str(cand)
+
+    prod_line = getattr(prod_func, "line_start", 1) if prod_func else 1
+
     elements.append({
         "data": {
             "id": func_node_id,
@@ -887,10 +1006,13 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
             "type": "function",
             "status": impl_status,
             "kind": "code",
+            "file_path": prod_file_path,
+            "line_start": prod_line,
+            "symbol_name": prod_name,
         }
     })
 
-    # Edge 1: Story ---> Implementation
+  
     sim = trace_status.similarity if trace_status else 0.0
     src = trace_status.source if trace_status else "none"
     edge_label = f"{sim * 100:.1f}% ({src})" if sim > 0 else "unlinked"
@@ -905,18 +1027,37 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
         }
     })
 
-    # Node 3: Verification (Always the test fixture)
+    
     test_node_id = f"test_{test_func.name}" if test_func else "test_node"
-    test_symbol = test_func.name if test_func else (trace_status.linked_test_symbol or "unit_test")
+    test_symbol = test_func.name if test_func else (trace_status.linked_test_symbol or "")
+    test_file_path = getattr(test_func, "file_path", "") if test_func else ""
+    test_line = getattr(test_func, "line_start", 1) if test_func else 1
+
     if test_func:
         test_label = f"Test: {test_func.name}\n" + ("✅ Assertion Passed" if has_test_assertion else "❌ Missing Assertion")
         test_status = "passed" if has_test_assertion else "missing"
-    elif trace_status.has_test_assertion:
+    elif trace_status.has_test_assertion and trace_status.linked_test_symbol:
         test_label = f"Test: {test_symbol}\n✅ Assertion Passed"
         test_status = "passed"
     else:
         test_label = "Unit Test\n❌ Missing"
         test_status = "missing"
+        test_symbol = ""
+        # Resolve test file ONLY if it matches the current module name (e.g. src/foo.py -> tests/test_foo.py)
+        # NEVER arbitrarily select extra_tests[0]!
+        test_file_path = ""
+        stem = p.stem
+        if not (stem.startswith("test_") or "tests" in p.parts):
+            cand_test_files = [
+                p.parent.parent / "tests" / f"test_{stem}.py",
+                p.parent / "tests" / f"test_{stem}.py",
+                p.parent / f"test_{stem}.py",
+                p.parent.parent / f"test_{stem}.py",
+            ]
+            for cand in cand_test_files:
+                if cand.exists() and cand.is_file():
+                    test_file_path = str(cand)
+                    break
 
     elements.append({
         "data": {
@@ -925,10 +1066,13 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
             "label": test_label,
             "type": "test",
             "status": test_status,
+            "file_path": test_file_path,
+            "line_start": test_line,
+            "symbol_name": test_symbol,
         }
     })
 
-    # Edge 2: Implementation ---> Verification
+   
     edge_assertion_label = "asserts" if test_status == "passed" else "untested"
     elements.append({
         "data": {
@@ -940,7 +1084,7 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
         }
     })
 
-    # Deterministic acceptance criteria evaluation for active story
+
     resolved_ac_statuses = trace_status.ac_statuses
     if not resolved_ac_statuses and matched_story:
         resolved_ac_statuses = evaluate_acceptance_criteria(matched_story, functions, embedder=embedder)
@@ -959,6 +1103,7 @@ def trace_graph(request: GraphRequest) -> GraphResponse:
 
 
 @router.post("/scaffold/naming", response_model=ScaffoldNamingResponse)
+@router.post("/trace/scaffold/naming", response_model=ScaffoldNamingResponse)
 def scaffold_naming(request: ScaffoldNamingRequest) -> ScaffoldNamingResponse:
     """Uses INT8 ONNX sentence embeddings to determine idiomatic, production-grade
     Python module filenames for a user story instead of arbitrary verbose slugs.
@@ -972,10 +1117,10 @@ def scaffold_naming(request: ScaffoldNamingRequest) -> ScaffoldNamingResponse:
 
     full_context = f"{request.user_story} {' '.join(request.acceptance_criteria)}"
     
-    # Candidate generation combining domain nouns and production architectural patterns
+   
     candidates = []
     
-    # Extract clean domain tokens
+   
     story_clean = re.sub(r"^(as a|as an|i want to|so that i can|so that)\s+", "", request.user_story.lower())
     clean_words = [w for w in re.findall(r"[a-z]{3,}", story_clean) if w not in {"want", "that", "this", "with", "from", "into", "system", "user", "merchant", "customer", "registered", "sensitive", "checkout", "about", "using", "through", "based"}]
     
@@ -987,7 +1132,7 @@ def scaffold_naming(request: ScaffoldNamingRequest) -> ScaffoldNamingResponse:
         for suffix in ["service", "manager", "gateway", "calculator", "processor", "handler", "client", "auth", "trail"]:
             candidates.append(f"{w}_{suffix}")
             
-    # Also candidate single core concepts from ACs
+
     for ac in request.acceptance_criteria:
         ac_words = [w for w in re.findall(r"[a-z]{3,}", ac.lower()) if w not in {"validate", "return", "reject", "query", "round", "process", "issue", "raise", "capture", "serialize", "write", "generate", "dispatch", "mark", "hash"}]
         if len(ac_words) >= 2:
@@ -996,7 +1141,7 @@ def scaffold_naming(request: ScaffoldNamingRequest) -> ScaffoldNamingResponse:
             for suffix in ["service", "manager", "gateway", "calculator", "processor"]:
                 candidates.append(f"{w}_{suffix}")
 
-    # Domain-specific idiomatic production templates
+   
     if any(k in full_context.lower() for k in ["payment", "stripe", "credit card", "charge"]):
         candidates.extend(["payment_gateway", "payment_service", "payments", "stripe_gateway"])
     if any(k in full_context.lower() for k in ["jwt", "token", "authenticate", "login"]):
@@ -1012,7 +1157,7 @@ def scaffold_naming(request: ScaffoldNamingRequest) -> ScaffoldNamingResponse:
     if any(k in full_context.lower() for k in ["email", "activation", "verify"]):
         candidates.extend(["email_verification", "account_activation", "email_service"])
 
-    # De-duplicate while preserving order
+   
     candidates = list(dict.fromkeys(candidates))
     
     if embedder is not None and candidates:

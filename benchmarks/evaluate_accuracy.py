@@ -1,8 +1,4 @@
-"""Empirical Accuracy and Latency Evaluation Harness for Requirement Traceability Engine.
-
-Evaluates local INT8 ONNX SBERT model on Deep-SE benchmark dataset.
-Computes TP, FP, FN, TN, Precision, Recall, F1, and CPU latency percentiles (Mean, P50, P95).
-"""
+"""Evaluates local INT8 ONNX SBERT model on Deep-SE benchmark dataset."""
 
 from __future__ import annotations
 
@@ -15,7 +11,7 @@ from typing import Any, Dict
 
 import numpy as np
 
-# Ensure ml-engine and backend are accessible on sys.path
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ML_ENGINE_SRC = REPO_ROOT / "ml-engine" / "src"
 BACKEND_SRC = REPO_ROOT / "backend"
@@ -64,7 +60,7 @@ def evaluate_model(
         gt = bool(item["is_ground_truth_link"])
         ground_truth.append(gt)
 
-        # Measure CPU inference latency (embed query + embed code + cosine sim)
+        
         t0 = time.perf_counter()
         query_vec = embedder.embed_single(query_text)
         code_vec = embedder.embed_single(code_text)
@@ -74,7 +70,7 @@ def evaluate_model(
         latencies_ms.append(elapsed_ms)
         similarities.append(sim)
 
-    # Compute Latency Metrics
+   
     latency_summary = {
         "mean_ms": float(np.mean(latencies_ms)),
         "p50_ms": float(np.percentile(latencies_ms, 50)),
@@ -83,7 +79,7 @@ def evaluate_model(
         "max_ms": float(np.max(latencies_ms)),
     }
 
-    # Compute Accuracy Metrics for each threshold
+    
     threshold_results: dict[str, dict[str, Any]] = {}
 
     for thresh in thresholds:
@@ -155,3 +151,21 @@ if __name__ == "__main__":
     pairs = load_ground_truth()
     results = evaluate_model(pairs, thresholds=[0.65, 0.80])
     print_evaluation_report(results)
+
+    
+    try:
+        from visualize_benchmark import generate_html_report, generate_pure_svg_charts
+        generate_html_report(BENCHMARKS_DIR, results)
+        generate_pure_svg_charts(BENCHMARKS_DIR, results)
+    except Exception as e:
+        logger.debug("Visual export error: %s", e)
+
+   
+    if "--no-gui" not in sys.argv:
+        print("\n[⚡] Displaying real graphical bar chart window...")
+        try:
+            from gui_chart import show_real_bar_chart
+            show_real_bar_chart(results)
+        except Exception as err:
+            print(f"[i] GUI window display note: {err}")
+

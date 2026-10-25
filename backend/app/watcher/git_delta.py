@@ -25,15 +25,12 @@ from app.parsers.python_ast import (
 
 logger = logging.getLogger(__name__)
 
-# Unified diff hunk regex: @@ -old_start[,old_count] +new_start[,new_count] @@
+# Unified diff hunk regex
 HUNK_PATTERN = re.compile(r"^@@\s+-(?:\d+)(?:,\d+)?\s+\+(\d+)(?:,(\d+))?\s+@@")
 
 
 def get_delta_ranges_from_diff(diff_output: str) -> list[tuple[int, int]]:
     """Parse unified diff text (-U0) and extract (start_line, end_line) intervals in new file.
-
-    Returns:
-        List of 1-indexed inclusive (start_line, end_line) tuples.
     """
     ranges: list[tuple[int, int]] = []
     for line in diff_output.splitlines():
@@ -47,7 +44,7 @@ def get_delta_ranges_from_diff(diff_output: str) -> list[tuple[int, int]]:
         new_count = int(count_str) if count_str is not None else 1
 
         if new_count == 0:
-            # Deletion at new_start; flag single surrounding point
+          
             ranges.append((max(1, new_start), max(1, new_start)))
         else:
             ranges.append((new_start, new_start + new_count - 1))
@@ -70,9 +67,7 @@ def get_git_delta_ranges(
     repo_root: Path | str | None = None,
     timeout_sec: float = 0.25,
 ) -> list[tuple[int, int]]:
-    """Execute git diff -U0 to determine modified line intervals (start_line, end_line) in file_path.
-
-    Checks both unstaged changes and staged changes.
+    """Checks both unstaged changes and staged changes.
     """
     path = Path(file_path).resolve()
     cwd = Path(repo_root).resolve() if repo_root else path.parent
@@ -87,7 +82,6 @@ def get_git_delta_ranges(
 
     all_ranges: list[tuple[int, int]] = []
 
-    # 1. Unstaged diff
     try:
         proc = subprocess.run(
             ["git", "diff", "-U0", "--", str(path)],
@@ -102,7 +96,7 @@ def get_git_delta_ranges(
     except Exception as e:
         logger.debug("git diff failed for %s: %s", path, e)
 
-    # 2. Staged diff (cached)
+
     try:
         proc_cached = subprocess.run(
             ["git", "diff", "--cached", "-U0", "--", str(path)],
@@ -139,8 +133,6 @@ def filter_symbols_by_delta(
     delta_ranges: list[tuple[int, int]],
 ) -> list[ParsedSymbol]:
     """Filter symbols returning only those intersecting the delta line intervals.
-
-    Includes function header comment bounds (up to 3 lines above start).
     """
     if not delta_ranges:
         return []
@@ -148,7 +140,7 @@ def filter_symbols_by_delta(
     modified: list[ParsedSymbol] = []
     for sym in symbols:
         expanded_start = max(1, sym.line_start - 3)
-        # Check intersection between [expanded_start, sym.line_end] and [d_start, d_end]
+      
         intersects = any(
             max(expanded_start, d_start) <= min(sym.line_end, d_end)
             for d_start, d_end in delta_ranges
@@ -163,7 +155,7 @@ def filter_functions_by_dirty_lines(
     functions: Sequence[ParsedFunction],
     dirty_lines: set[int],
 ) -> list[ParsedFunction]:
-    """Backward-compatible helper filtering by a set of dirty line integers."""
+
     if not dirty_lines:
         return []
 
@@ -182,7 +174,7 @@ def get_modified_functions(
     repo_root: Path | str | None = None,
     source_code: str | None = None,
 ) -> tuple[list[ParsedSymbol], float]:
-    """Execute git delta and AST parse to retrieve ONLY modified functions."""
+
     t0 = time.perf_counter()
     path = Path(file_path)
 

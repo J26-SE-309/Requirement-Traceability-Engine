@@ -1,7 +1,4 @@
-"""Version 1 of the traceability API.
-
-Plugs in local ONNX inference, AST parsing, Git delta watcher, and coverage computation.
-"""
+"""Version 1 of the traceability API."""
 
 from __future__ import annotations
 

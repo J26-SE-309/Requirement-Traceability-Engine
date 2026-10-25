@@ -1,51 +1,77 @@
 /**
  * Automatic Scaffolding Engine for Requirement Traceability Engine.
  *
- * Uses the local INT8 ONNX MiniLM sentence embedding engine to automatically
- * determine idiomatic, production-grade module names (e.g. `card_payments.py`,
- * `sales_tax_calculator.py`, `authenticate_jwt.py`) instead of verbose story slugs.
- *
- * Every generated file includes:
- *   - Clean production module naming generated via INT8 SBERT semantic evaluation
- *   - Explicit '# Trace: <STORY-ID>' annotations for deterministic AST parsing
- *   - Docstrings containing full Acceptance Criteria text for SBERT embedding similarity
- *   - Type annotations and callable function signatures
- *   - Pytest fixtures with assertions verifying each acceptance criterion
+ * Queries the local INT8 ONNX MiniLM sentence embedding engine in the FastAPI
+ * backend to dynamically synthesize idiomatic module names, typed function
+ * signatures, and verifiable pytest suites for any backlog story.
  */
 
 import * as vscode from "vscode";
 import { TraceApiClient } from "../api/client";
 import { StoryRef } from "../api/types";
 import { StoryManager } from "../stories/storyManager";
+import { resolveWorkspaceRootUri } from "../utils/workspaceRoot";
+
+const STOP_WORDS = new Set([
+  "a", "an", "the", "and", "or", "with", "for", "to", "of", "in", "on", "at",
+  "by", "from", "as", "so", "that", "i", "want", "is", "be", "user", "system",
+  "customer", "platform", "when", "if", "upon", "using", "based", "through",
+]);
+
+const ACTION_VERBS = new Set([
+  "validate", "verify", "check", "authenticate", "authorize", "enforce", "reject",
+  "calculate", "compute", "round", "aggregate", "estimate", "extract", "parse",
+  "resolve", "identify", "query", "fetch", "get", "cache", "store", "persist",
+  "record", "write", "serialize", "capture", "generate", "create", "initiate",
+  "issue", "establish", "broadcast", "dispatch", "stream", "replay", "process",
+  "apply", "complete", "assemble", "execute", "delete", "invalidate", "sanitize",
+]);
 
 /**
- * Converts a text string into a clean, valid Python snake_case identifier.
+ * Extracts a clean snake_case identifier from natural language text.
  */
-function toSnakeCaseIdentifier(text: string, maxWords: number = 6): string {
-  const stopWords = new Set([
-    "a", "an", "the", "and", "or", "with", "for", "to", "of", "in", "on", "at", "by", "from", "as", "so", "that", "i", "want"
-  ]);
-
-  const clean = text
+function toSnakeCaseIdentifier(text: string, maxWords: number = 3): string {
+  const cleaned = text
+    .replace(/^as\s+an?\s+[^,]+,\s*i\s+want\s+(?:to\s+)?/i, "")
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
     .trim()
     .split(/\s+/)
-    .filter((w) => w.length > 0 && !stopWords.has(w));
+    .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
 
-  const words = clean.slice(0, maxWords);
+  const words = cleaned.slice(0, maxWords);
   const identifier = words.join("_");
 
-  // Ensure it starts with an alphabetical character
   if (/^[0-9]/.test(identifier)) {
     return "fn_" + identifier;
   }
-  return identifier || "operation";
+  return identifier || "feature_handler";
 }
 
 /**
- * Resolves an idiomatic, production-grade Python module name for a User Story
- * using the local INT8 ONNX MiniLM sentence embedding engine in the backend.
+ * Dynamically derives a verb_noun function name from any Acceptance Criterion.
+ */
+function deriveDynamicFunctionName(acText: string, index: number): string {
+  const clean = acText.replace(/^AC-\d+:\s*/i, "").trim().toLowerCase();
+  const tokens = clean.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
+
+  const verbs = tokens.filter((t) => ACTION_VERBS.has(t));
+  const nouns = tokens.filter(
+    (t) => !ACTION_VERBS.has(t) && !STOP_WORDS.has(t) && t.length > 2 && !/^\d+$/.test(t)
+  );
+
+  const primaryVerb = verbs[0] || "process";
+  const targetNouns = nouns.slice(0, 2);
+
+  if (targetNouns.length > 0) {
+    return `${primaryVerb}_${targetNouns.join("_")}`;
+  }
+  return `${primaryVerb}_step_${index + 1}`;
+}
+
+/**
+ * Resolves an idiomatic module name using the backend INT8 ONNX model,
+ * with a clean dynamic noun-phrase fallback if the backend is unreachable.
  */
 export async function resolveProductionModuleName(
   story: StoryRef
@@ -65,214 +91,133 @@ export async function resolveProductionModuleName(
       };
     }
   } catch (err) {
-    console.warn("[RTE Scaffolder] Backend INT8 naming query failed, using semantic fallback:", err);
+    console.warn("[RTE Scaffolder] Backend INT8 naming query failed, using dynamic noun extraction:", err);
   }
 
-  // Fallback production naming rules (eliminating arbitrary verbose story prefixes)
-  const fullText = `${story.user_story} ${(story.acceptance_criteria || []).join(" ")}`.toLowerCase();
-
-  if (fullText.includes("payment") || fullText.includes("stripe") || fullText.includes("credit card")) {
-    return { moduleName: "card_payments", confidence: 0.85, topCandidates: ["card_payments", "payment_gateway", "payment_service"] };
-  }
-  if (fullText.includes("jwt") || fullText.includes("token") || fullText.includes("authenticate")) {
-    return { moduleName: "authenticate_jwt", confidence: 0.85, topCandidates: ["authenticate_jwt", "jwt_auth", "auth_service"] };
-  }
-  if (fullText.includes("tax") || fullText.includes("jurisdiction")) {
-    return { moduleName: "sales_tax_calculator", confidence: 0.85, topCandidates: ["sales_tax_calculator", "tax_calculator", "tax_service"] };
-  }
-  if (fullText.includes("inventory") || fullText.includes("warehouse") || fullText.includes("stock")) {
-    return { moduleName: "warehouse_stock", confidence: 0.85, topCandidates: ["warehouse_stock", "inventory_service"] };
-  }
-  if (fullText.includes("audit") || fullText.includes("compliance")) {
-    return { moduleName: "audit_trail", confidence: 0.85, topCandidates: ["audit_trail", "audit_service"] };
-  }
-  if (fullText.includes("password") || fullText.includes("reset") || fullText.includes("forgot")) {
-    return { moduleName: "password_reset", confidence: 0.85, topCandidates: ["password_reset", "password_recovery"] };
-  }
-  if (fullText.includes("email") || fullText.includes("activation")) {
-    return { moduleName: "email_verification", confidence: 0.85, topCandidates: ["email_verification", "account_activation"] };
-  }
-
-  // Generic clean 2-word domain phrase
-  const clean = toSnakeCaseIdentifier(story.user_story, 2);
-  return { moduleName: clean ? `${clean}_service` : "feature_service", confidence: 0.5, topCandidates: [clean] };
+  const baseName = toSnakeCaseIdentifier(story.user_story, 2);
+  const moduleName = baseName.endsWith("_service") ? baseName : `${baseName}_service`;
+  return {
+    moduleName,
+    confidence: 0.65,
+    topCandidates: [moduleName],
+  };
 }
 
 /**
- * Generates the Python implementation file content for a user story.
+ * Local fallback generator if the FastAPI backend is offline.
  */
-function generateImplementationCode(story: StoryRef, moduleName: string, confidence: number): string {
-  const lines: string[] = [];
-
-  lines.push(`"""`);
-  lines.push(`Production Module: src/${moduleName}.py`);
-  lines.push(`Traced to ${story.story_id} via INT8 ONNX AI (semantic confidence: ${(confidence * 100).toFixed(1)}%).`);
-  lines.push(``);
-  lines.push(`User Story:`);
-  lines.push(`${story.user_story}`);
-  lines.push(`"""`);
-  lines.push(``);
-  lines.push(`from typing import Any, Dict, List, Optional, Tuple, Union`);
-  lines.push(``);
-  lines.push(``);
-
-  const criteria = story.acceptance_criteria || [];
-  if (criteria.length === 0) {
-    const fnName = toSnakeCaseIdentifier(story.user_story, 5);
-    lines.push(`# Trace: ${story.story_id}`);
-    lines.push(`def ${fnName}(*args: Any, **kwargs: Any) -> Dict[str, Any]:`);
-    lines.push(`    """`);
-    lines.push(`    ${story.user_story}`);
-    lines.push(`    """`);
-    lines.push(`    return {"status": "success", "story": "${story.story_id}"}`);
-    lines.push(``);
-  } else {
-    for (let i = 0; i < criteria.length; i++) {
-      const ac = criteria[i];
-      const fnName = toSnakeCaseIdentifier(ac, 6);
-
-      lines.push(`# Trace: ${story.story_id}`);
-      lines.push(`def ${fnName}(*args: Any, **kwargs: Any) -> Any:`);
-      lines.push(`    """`);
-      lines.push(`    Acceptance Criterion AC-${i + 1}:`);
-      lines.push(`    ${ac}`);
-      lines.push(`    """`);
-
-      const acLower = ac.toLowerCase();
-      if (acLower.includes("validate") || acLower.includes("reject") || acLower.includes("check") || acLower.includes("verify")) {
-        lines.push(`    # Verification stub evaluating criterion constraint`);
-        lines.push(`    if kwargs.get("force_invalid") or (args and args[0] is None):`);
-        lines.push(`        return False, 400, "Invalid or unauthorized input"`);
-        lines.push(`    return True, 200, "Validation successful"`);
-      } else if (acLower.includes("query") || acLower.includes("return") || acLower.includes("fetch") || acLower.includes("get")) {
-        lines.push(`    # Query result payload stub`);
-        lines.push(`    return {`);
-        lines.push(`        "criterion_id": "AC-${i + 1}",`);
-        lines.push(`        "story_id": "${story.story_id}",`);
-        lines.push(`        "verified": True,`);
-        lines.push(`        "data": kwargs.get("data", "sample_payload"),`);
-        lines.push(`    }`);
-      } else if (acLower.includes("calculate") || acLower.includes("compute") || acLower.includes("round") || acLower.includes("rate")) {
-        lines.push(`    amount = kwargs.get("amount", (args[0] if args else 100.0))`);
-        lines.push(`    rate = kwargs.get("rate", 0.05)`);
-        lines.push(`    return round(float(amount) * float(rate), 2)`);
-      } else if (acLower.includes("generate") || acLower.includes("create") || acLower.includes("dispatch") || acLower.includes("send")) {
-        lines.push(`    return {`);
-        lines.push(`        "token": f"sec_token_${story.story_id.toLowerCase()}_{i + 1}",`);
-        lines.push(`        "active": True,`);
-        lines.push(`        "status": "generated",`);
-        lines.push(`    }`);
-      } else {
-        lines.push(`    return {"status": "ok", "criterion": "${ac}"}`);
-      }
-      lines.push(``);
-      lines.push(``);
-    }
-  }
-
-  return lines.join("\n");
-}
-
-/**
- * Generates the Python test file content for a user story.
- */
-function generateTestCode(story: StoryRef, moduleName: string): string {
-  const lines: string[] = [];
-
+function generateFallbackFiles(
+  story: StoryRef,
+  moduleName: string,
+  confidence: number
+): { implContent: string; testContent: string } {
   const criteria = story.acceptance_criteria || [];
   const fnNames: string[] = [];
+  const implBlocks: string[] = [];
+  const testBlocks: string[] = [];
 
-  if (criteria.length === 0) {
-    fnNames.push(toSnakeCaseIdentifier(story.user_story, 5));
-  } else {
-    for (const ac of criteria) {
-      fnNames.push(toSnakeCaseIdentifier(ac, 6));
-    }
+  const effectiveCriteria = criteria.length > 0 ? criteria : [story.user_story];
+
+  for (let i = 0; i < effectiveCriteria.length; i++) {
+    const ac = effectiveCriteria[i];
+    const fnName = deriveDynamicFunctionName(ac, i);
+    fnNames.push(fnName);
+
+    implBlocks.push(
+      [
+        `# Trace: ${story.story_id}`,
+        `def ${fnName}(payload: Optional[Any] = "default_input") -> Dict[str, Any]:`,
+        `    """`,
+        `    Acceptance Criterion AC-${i + 1}:`,
+        `    ${ac}`,
+        `    """`,
+        `    if payload is None:`,
+        `        raise ValueError("Input payload cannot be None")`,
+        `    return {`,
+        `        "story_id": "${story.story_id}",`,
+        `        "criterion_index": ${i + 1},`,
+        `        "status": "completed",`,
+        `        "verified": True,`,
+        `    }`,
+      ].join("\n")
+    );
+
+    testBlocks.push(
+      [
+        `# Trace: ${story.story_id}`,
+        `def test_${fnName}():`,
+        `    """`,
+        `    Verify Acceptance Criterion AC-${i + 1}:`,
+        `    ${ac}`,
+        `    """`,
+        `    result = ${fnName}("valid_sample_input")`,
+        `    assert result is not None`,
+        `    assert result["status"] == "completed"`,
+        `    assert result["story_id"] == "${story.story_id}"`,
+        `    assert result["verified"] is True`,
+        ``,
+        `    with pytest.raises(ValueError):`,
+        `        ${fnName}(None)`,
+      ].join("\n")
+    );
   }
 
-  lines.push(`"""`);
-  lines.push(`Unit test verification suite for ${story.story_id}.`);
-  lines.push(`Tests implementation in src/${moduleName}.py.`);
-  lines.push(``);
-  lines.push(`User Story:`);
-  lines.push(`${story.user_story}`);
-  lines.push(`"""`);
-  lines.push(``);
-  lines.push(`import pytest`);
-  lines.push(`from src.${moduleName} import (`);
-  for (const fn of fnNames) {
-    lines.push(`    ${fn},`);
-  }
-  lines.push(`)`);
-  lines.push(``);
-  lines.push(``);
+  const implContent = [
+    `"""`,
+    `Production Module: src/${moduleName}.py`,
+    `Traced to ${story.story_id} via INT8 ONNX AI (semantic confidence:${(confidence * 100).toFixed(1)}%).`,
+    ``,
+    `User Story:`,
+    `${story.user_story}`,
+    `"""`,
+    ``,
+    `from __future__ import annotations`,
+    ``,
+    `from typing import Any, Dict, List, Optional, Tuple, Union`,
+    ``,
+    ``,
+    implBlocks.join("\n\n\n"),
+    ``,
+  ].join("\n");
 
-  for (let i = 0; i < fnNames.length; i++) {
-    const fn = fnNames[i];
-    const ac = criteria[i] || story.user_story;
+  const testContent = [
+    `"""`,
+    `Unit test verification suite for ${story.story_id}.`,
+    `Tests implementation in src/${moduleName}.py.`,
+    ``,
+    `User Story:`,
+    `${story.user_story}`,
+    `"""`,
+    ``,
+    `from __future__ import annotations`,
+    ``,
+    `import pytest`,
+    `from src.${moduleName} import (`,
+    ...fnNames.map((fn) => `    ${fn},`),
+    `)`,
+    ``,
+    ``,
+    testBlocks.join("\n\n\n"),
+    ``,
+  ].join("\n");
 
-    lines.push(`# Trace: ${story.story_id}`);
-    lines.push(`def test_${fn}():`);
-    lines.push(`    """`);
-    lines.push(`    Verify Acceptance Criterion AC-${i + 1}:`);
-    lines.push(`    ${ac}`);
-    lines.push(`    """`);
-
-    const acLower = ac.toLowerCase();
-    if (acLower.includes("validate") || acLower.includes("reject") || acLower.includes("check") || acLower.includes("verify")) {
-      lines.push(`    success, status, msg = ${fn}("valid_test_input")`);
-      lines.push(`    assert success is True`);
-      lines.push(`    assert status == 200`);
-      lines.push(``);
-      lines.push(`    failed, fail_status, _ = ${fn}(None)`);
-      lines.push(`    assert failed is False`);
-      lines.push(`    assert fail_status == 400`);
-    } else if (acLower.includes("query") || acLower.includes("return") || acLower.includes("fetch") || acLower.includes("get")) {
-      lines.push(`    res = ${fn}(query_key="sample")`);
-      lines.push(`    assert res is not None`);
-      lines.push(`    assert res.get("verified") is True`);
-      lines.push(`    assert res.get("story_id") == "${story.story_id}"`);
-    } else if (acLower.includes("calculate") || acLower.includes("compute") || acLower.includes("round") || acLower.includes("rate")) {
-      lines.push(`    calc_res = ${fn}(amount=200.0, rate=0.08)`);
-      lines.push(`    assert isinstance(calc_res, (int, float))`);
-      lines.push(`    assert calc_res == 16.0`);
-    } else if (acLower.includes("generate") || acLower.includes("create") || acLower.includes("dispatch")) {
-      lines.push(`    gen_res = ${fn}()`);
-      lines.push(`    assert gen_res is not None`);
-      lines.push(`    assert "token" in gen_res`);
-      lines.push(`    assert gen_res.get("active") is True`);
-    } else {
-      lines.push(`    outcome = ${fn}()`);
-      lines.push(`    assert outcome is not None`);
-      lines.push(`    assert outcome.get("status") == "ok"`);
-    }
-    lines.push(``);
-    lines.push(``);
-  }
-
-  return lines.join("\n");
+  return { implContent, testContent };
 }
 
 /**
- * Scaffolds implementation and test files for a single User Story using INT8 AI naming.
+ * Scaffolds implementation and test files for a single User Story into the active workspace root.
  */
 export async function scaffoldFilesForStory(
   story: StoryRef,
   rootUri: vscode.Uri,
   openInEditor: boolean = true
 ): Promise<{ implUri: vscode.Uri; testUri: vscode.Uri; moduleName: string; confidence: number }> {
-  // Query INT8 AI for proper production module naming
-  const naming = await resolveProductionModuleName(story);
-  const moduleName = naming.moduleName;
-
   const srcDir = vscode.Uri.joinPath(rootUri, "src");
   const testsDir = vscode.Uri.joinPath(rootUri, "tests");
 
-  // Ensure src/ and tests/ directories exist
   await vscode.workspace.fs.createDirectory(srcDir);
   await vscode.workspace.fs.createDirectory(testsDir);
 
-  // Ensure __init__.py exists in both directories
   const srcInit = vscode.Uri.joinPath(srcDir, "__init__.py");
   const testsInit = vscode.Uri.joinPath(testsDir, "__init__.py");
   try {
@@ -286,11 +231,41 @@ export async function scaffoldFilesForStory(
     await vscode.workspace.fs.writeFile(testsInit, new Uint8Array());
   }
 
+  let moduleName = "";
+  let confidence = 0.65;
+  let implContent = "";
+  let testContent = "";
+
+  // 1. Primary Path: Query local FastAPI INT8 ONNX backend synthesizer
+  try {
+    const client = TraceApiClient.getInstance();
+    const aiRes = await client.generateScaffold({
+      story_id: story.story_id,
+      user_story: story.user_story,
+      acceptance_criteria: story.acceptance_criteria || [],
+    });
+    if (aiRes && aiRes.module_name && aiRes.implementation_code) {
+      moduleName = aiRes.module_name;
+      confidence = aiRes.confidence;
+      implContent = aiRes.implementation_code;
+      testContent = aiRes.test_code;
+    }
+  } catch (err) {
+    console.warn("[RTE Scaffolder] Backend AI generation query failed, using local fallback:", err);
+  }
+
+  // 2. Fallback Path: If backend is unreachable, use clean dynamic extractor
+  if (!implContent || !moduleName) {
+    const naming = await resolveProductionModuleName(story);
+    moduleName = naming.moduleName;
+    confidence = naming.confidence;
+    const fallback = generateFallbackFiles(story, moduleName, confidence);
+    implContent = fallback.implContent;
+    testContent = fallback.testContent;
+  }
+
   const implUri = vscode.Uri.joinPath(srcDir, `${moduleName}.py`);
   const testUri = vscode.Uri.joinPath(testsDir, `test_${moduleName}.py`);
-
-  const implContent = generateImplementationCode(story, moduleName, naming.confidence);
-  const testContent = generateTestCode(story, moduleName);
 
   const encoder = new TextEncoder();
   await vscode.workspace.fs.writeFile(implUri, encoder.encode(implContent));
@@ -301,19 +276,14 @@ export async function scaffoldFilesForStory(
     await vscode.window.showTextDocument(doc, { preview: false });
   }
 
-  return { implUri, testUri, moduleName, confidence: naming.confidence };
+  return { implUri, testUri, moduleName, confidence };
 }
 
 /**
- * Interactive Command Palette entry point for automatic code scaffolding.
+ * Interactive Command Palette & Sidebar entry point for automatic code scaffolding.
  */
 export async function runScaffoldStoryCommand(targetStoryId?: string): Promise<void> {
-  const folders = vscode.workspace.workspaceFolders;
-  if (!folders || folders.length === 0) {
-    vscode.window.showErrorMessage("No open workspace folder found to scaffold files.");
-    return;
-  }
-  const rootUri = folders[0].uri;
+  const rootUri = resolveWorkspaceRootUri();
 
   const stories = StoryManager.getInstance().getStories();
   if (stories.length === 0) {
@@ -321,7 +291,6 @@ export async function runScaffoldStoryCommand(targetStoryId?: string): Promise<v
     return;
   }
 
-  // If a specific story ID was targeted (e.g. from sidebar button)
   if (targetStoryId) {
     const matched = stories.find((s) => s.story_id === targetStoryId);
     if (matched) {
@@ -339,7 +308,6 @@ export async function runScaffoldStoryCommand(targetStoryId?: string): Promise<v
     }
   }
 
-  // Interactive QuickPick selection
   interface StoryQuickPickItem extends vscode.QuickPickItem {
     story?: StoryRef;
     isAll?: boolean;

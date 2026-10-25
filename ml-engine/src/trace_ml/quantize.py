@@ -1,7 +1,4 @@
 """Model Quantization Pipeline for Requirement Traceability Engine.
-
-Downloads all-MiniLM-L6-v2 base ONNX model and tokenizer artifacts,
-and dynamically quantizes model weights to INT8 for sub-50ms CPU inference.
 """
 
 from __future__ import annotations
@@ -62,7 +59,7 @@ def download_and_quantize(
     shutil.copyfile(cached_model, intermediate_fp32_path)
     logger.info("Base FP32 model copied to: %s (size: %.2f MB)", intermediate_fp32_path, intermediate_fp32_path.stat().st_size / (1024 * 1024))
 
-    # Verify ONNX model integrity
+ 
     logger.info("Checking model integrity...")
     model_proto = onnx.load(str(intermediate_fp32_path))
     onnx.checker.check_model(model_proto)

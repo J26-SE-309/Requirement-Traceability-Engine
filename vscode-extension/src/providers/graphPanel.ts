@@ -6,10 +6,12 @@
  * Plus real-time link rationale telemetry.
  */
 
+import * as path from "path";
 import * as vscode from "vscode";
 import { TraceApiClient } from "../api/client";
 import { GraphResponse } from "../api/types";
 import { StoryManager } from "../stories/storyManager";
+import { resolveWorkspaceRootUri } from "../utils/workspaceRoot";
 
 export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "rte.graphView";
@@ -34,6 +36,17 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
+    // Handle messages from the webview (clicking verification or implementation nodes)
+    webviewView.webview.onDidReceiveMessage(async (message) => {
+      if (message.type === "NAVIGATE_TO_CODE") {
+        await this._navigateToCode(message.filePath, message.line, message.symbolName);
+      } else if (message.type === "NO_TEST_FILE_WARNING") {
+        vscode.window.showWarningMessage(
+          `No unit test fixture exists for ${message.functionName || "this function"}(). Create a test fixture to establish traceability.`
+        );
+      }
+    });
+
     // Track active editor cursor position changes
     vscode.window.onDidChangeTextEditorSelection((e) => {
       this._onCursorChanged(e.textEditor);
@@ -48,6 +61,112 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
     // Initial render for active editor
     if (vscode.window.activeTextEditor) {
       this._onCursorChanged(vscode.window.activeTextEditor);
+    }
+  }
+
+  /**
+   * Navigates to a specific file and line, focusing on the target function definition.
+   */
+  private async _navigateToCode(
+    filePath?: string,
+    line: number = 1,
+    symbolName?: string
+  ): Promise<void> {
+    try {
+      if (!filePath && !symbolName) {
+        vscode.window.showWarningMessage("No target file or code symbol linked to navigate to.");
+        return;
+      }
+
+      // Ignore dummy placeholder symbol names
+      if (symbolName === "unit_test" || symbolName === "test_node") {
+        symbolName = undefined;
+      }
+
+      const projectUri = resolveWorkspaceRootUri();
+      let targetUri: vscode.Uri | undefined;
+
+      if (filePath && filePath.trim().length > 0) {
+        if (path.isAbsolute(filePath)) {
+          targetUri = vscode.Uri.file(filePath);
+        } else {
+          targetUri = vscode.Uri.joinPath(projectUri, filePath);
+        }
+
+        try {
+          await vscode.workspace.fs.stat(targetUri);
+        } catch {
+          targetUri = undefined;
+        }
+      }
+
+      // If no file path or file not found on disk, deduce candidate test file ONLY based on active file's folder
+      if (!targetUri) {
+        const activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor) {
+          const activePath = activeEditor.document.uri.fsPath;
+          const activeDir = path.dirname(activePath);
+          const activeBase = path.basename(activePath, ".py");
+
+          if (symbolName && (symbolName.startsWith("test_") || symbolName.endsWith("_test"))) {
+            const raw = activeBase.replace(/^test_/, "");
+            const candidates = [
+              vscode.Uri.file(path.join(activeDir, "..", "tests", `test_${raw}.py`)),
+              vscode.Uri.file(path.join(activeDir, "tests", `test_${raw}.py`)),
+              vscode.Uri.file(path.join(activeDir, `test_${raw}.py`)),
+              vscode.Uri.joinPath(projectUri, "tests", `test_${raw}.py`),
+              vscode.Uri.joinPath(projectUri, `test_${raw}.py`),
+            ];
+            for (const cand of candidates) {
+              try {
+                await vscode.workspace.fs.stat(cand);
+                targetUri = cand;
+                break;
+              } catch {}
+            }
+          }
+        }
+      }
+
+      if (!targetUri) {
+        vscode.window.showWarningMessage(
+          `No unit test file found for ${symbolName || (filePath ? path.basename(filePath) : "this function")}.`
+        );
+        return;
+      }
+
+      const doc = await vscode.workspace.openTextDocument(targetUri);
+      const editor = await vscode.window.showTextDocument(doc, {
+        preview: false,
+        viewColumn: vscode.ViewColumn.One,
+      });
+
+      // Calculate target line: search for symbol definition in text if possible
+      let targetLineIndex = Math.max(0, (line || 1) - 1);
+      if (symbolName) {
+        const text = doc.getText();
+        const lines = text.split(/\r?\n/);
+        const defRegex = new RegExp(`^\\s*(?:async\\s+)?def\\s+${symbolName}\\b`);
+        for (let i = 0; i < lines.length; i++) {
+          if (defRegex.test(lines[i])) {
+            targetLineIndex = i;
+            break;
+          }
+        }
+      }
+
+      const pos = new vscode.Position(targetLineIndex, 0);
+      editor.selection = new vscode.Selection(pos, pos);
+      editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+
+      const displayFileName = path.basename(targetUri.fsPath);
+      vscode.window.setStatusBarMessage(
+        `$(arrow-right) Navigated to ${displayFileName}:${targetLineIndex + 1} (${symbolName || "function"})`,
+        3000
+      );
+    } catch (err: any) {
+      console.error("Navigation error:", err);
+      vscode.window.showErrorMessage(`Failed to navigate to file: ${err.message || err}`);
     }
   }
 
@@ -195,14 +314,79 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       font-family: var(--font-code);
     }
 
+   
+    .status-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      letter-spacing: 0.04em;
+      font-family: var(--font-code);
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      border: 1px solid transparent;
+    }
+    .status-badge.status-verified {
+      background: rgba(46, 160, 67, 0.18);
+      border-color: rgba(63, 185, 80, 0.45);
+      color: #3fb950;
+      box-shadow: 0 0 8px rgba(63, 185, 80, 0.15);
+    }
+    .status-badge.status-missing-test {
+      background: rgba(210, 153, 34, 0.18);
+      border-color: rgba(210, 153, 34, 0.45);
+      color: #e3b341;
+      box-shadow: 0 0 8px rgba(210, 153, 34, 0.15);
+    }
+    .status-badge.status-unlinked {
+      background: rgba(139, 148, 158, 0.12);
+      border-color: rgba(139, 148, 158, 0.25);
+      color: var(--text-muted);
+    }
+    .status-badge.status-candidate {
+      background: rgba(56, 139, 253, 0.18);
+      border-color: rgba(56, 139, 253, 0.45);
+      color: #58a6ff;
+      box-shadow: 0 0 8px rgba(56, 139, 253, 0.15);
+    }
+
     /* 3-Tier Card Layout */
     .node-card {
       background: var(--card-bg);
       border-radius: 6px;
       padding: 14px 16px;
       text-align: center;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       width: 100%;
+      user-select: none;
+    }
+
+    .node-card.clickable {
+      cursor: pointer;
+      position: relative;
+    }
+
+    .node-card.clickable:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+    }
+
+    .card-action-hint {
+      font-size: 10px;
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      opacity: 0.75;
+      letter-spacing: 0.04em;
+    }
+
+    .node-card.clickable:hover .card-action-hint {
+      opacity: 1;
     }
 
     .card-label {
@@ -229,6 +413,13 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
     .card-requirement .card-label {
       color: var(--blue-text);
     }
+    .card-requirement.unlinked {
+      border-color: var(--border-default);
+      box-shadow: none;
+    }
+    .card-requirement.unlinked .card-label {
+      color: var(--text-muted);
+    }
 
     /* Implementation Card */
     .card-implementation {
@@ -245,6 +436,13 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
     .card-implementation.orphan .card-label {
       color: var(--text-muted);
     }
+    .card-implementation.clickable:hover {
+      border-color: #3fb950;
+      box-shadow: 0 0 16px rgba(35, 134, 54, 0.35);
+    }
+    .card-implementation.clickable:hover .card-action-hint {
+      color: var(--green-text);
+    }
 
     /* Verification Card */
     .card-verification {
@@ -258,6 +456,20 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
     }
     .card-verification .card-label {
       color: var(--text-muted);
+    }
+    .card-verification.clickable:hover {
+      border-color: #3fb950;
+      box-shadow: 0 0 16px rgba(63, 185, 80, 0.35);
+    }
+    .card-verification.missing.clickable:hover {
+      border-color: #f85149;
+      box-shadow: 0 0 16px rgba(218, 54, 51, 0.35);
+    }
+    .card-verification.clickable:hover .card-action-hint {
+      color: var(--green-text);
+    }
+    .card-verification.missing.clickable:hover .card-action-hint {
+      color: var(--red-text);
     }
 
     /* Connectors */
@@ -324,7 +536,7 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
   <div id="container">
     <div class="header-bar">
       <span class="header-title">Active Traceability Sub-Graph</span>
-      <span class="badge-cytoscape">Cytoscape.js</span>
+      <span id="graph-status-badge" class="status-badge status-unlinked">○ UNLINKED</span>
     </div>
 
     <div id="empty-state">
@@ -333,9 +545,9 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
 
     <div id="graph-content">
       <!-- Node 1: Requirement -->
-      <div class="node-card card-requirement">
+      <div id="req-card" class="node-card card-requirement">
         <div class="card-label">Requirement</div>
-        <div id="req-title" class="card-value">US-102: Tutor Booking</div>
+        <div id="req-title" class="card-value">US-102: context.subscriptions.push</div>
       </div>
 
       <!-- Connector 1 -->
@@ -347,7 +559,8 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       <!-- Node 2: Implementation -->
       <div id="impl-card" class="node-card card-implementation">
         <div class="card-label">Implementation</div>
-        <div id="impl-title" class="card-value">TutorBookingController.py</div>
+        <div id="impl-title" class="card-value"></div>
+        <div class="card-action-hint"><span id="impl-hint">↗ Click to open implementation</span></div>
       </div>
 
       <!-- Connector 2 -->
@@ -359,7 +572,8 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       <!-- Node 3: Verification -->
       <div id="verif-card" class="node-card card-verification">
         <div class="card-label">Verification</div>
-        <div id="verif-title" class="card-value">test_booking_flow.py</div>
+        <div id="verif-title" class="card-value"></div>
+        <div class="card-action-hint"><span id="verif-hint">↗ Click to open test fixture</span></div>
       </div>
 
       <!-- Link Rationale Box -->
@@ -371,6 +585,40 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
   </div>
 
   <script>
+    const vscode = acquireVsCodeApi();
+
+    let currentTestData = null;
+    let currentImplData = null;
+
+    document.getElementById('verif-card').addEventListener('click', () => {
+      const hasPath = currentTestData && currentTestData.file_path && currentTestData.file_path.trim().length > 0;
+      const hasSymbol = currentTestData && currentTestData.symbol_name && currentTestData.symbol_name !== 'unit_test' && currentTestData.symbol_name.length > 0;
+      if (hasPath || hasSymbol) {
+        vscode.postMessage({
+          type: 'NAVIGATE_TO_CODE',
+          filePath: currentTestData.file_path || '',
+          line: currentTestData.line_start || 1,
+          symbolName: (currentTestData.symbol_name && currentTestData.symbol_name !== 'unit_test') ? currentTestData.symbol_name : '',
+        });
+      } else {
+        vscode.postMessage({
+          type: 'NO_TEST_FILE_WARNING',
+          functionName: (currentImplData && currentImplData.name) || 'function',
+        });
+      }
+    });
+
+    document.getElementById('impl-card').addEventListener('click', () => {
+      if (currentImplData && (currentImplData.file_path || currentImplData.symbol_name || currentImplData.name)) {
+        vscode.postMessage({
+          type: 'NAVIGATE_TO_CODE',
+          filePath: currentImplData.file_path,
+          line: currentImplData.line_start || 1,
+          symbolName: currentImplData.symbol_name || currentImplData.name,
+        });
+      }
+    });
+
     window.addEventListener('message', event => {
       const message = event.data;
       if (message.type === 'UPDATE_GRAPH') {
@@ -387,6 +635,11 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       if (!data || !data.active_function) {
         emptyState.style.display = 'block';
         content.style.display = 'none';
+        const graphStatusBadge = document.getElementById('graph-status-badge');
+        if (graphStatusBadge) {
+          graphStatusBadge.className = 'status-badge status-unlinked';
+          graphStatusBadge.textContent = '○ UNLINKED';
+        }
         return;
       }
 
@@ -401,12 +654,36 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
       const testNode = elements.find(el => el.data && el.data.type === 'test');
       const storyEdge = elements.find(el => el.data && el.data.id === 'edge_story_func');
 
+      currentTestData = testNode && testNode.data ? testNode.data : null;
+      currentImplData = funcNode && funcNode.data ? funcNode.data : null;
+
       const storyId = data.story_id || (storyNode && storyNode.data ? storyNode.data.id.replace('story_', '') : 'UNLINKED');
       const funcStatus = (funcNode && funcNode.data && funcNode.data.status) ? funcNode.data.status : 'ORPHAN';
       const sim = (storyEdge && storyEdge.data && storyEdge.data.similarity !== undefined) ? storyEdge.data.similarity : 0;
       const hasAssertion = testNode && testNode.data && testNode.data.status === 'passed';
 
+      // Update clean tripartite status badge in header
+      const graphStatusBadge = document.getElementById('graph-status-badge');
+      if (graphStatusBadge) {
+        if (storyId !== 'UNLINKED' && (funcStatus === 'VERIFIED' || hasAssertion)) {
+          graphStatusBadge.className = 'status-badge status-verified';
+          graphStatusBadge.textContent = '✓ VERIFIED';
+        } else if (storyId !== 'UNLINKED' && (funcStatus === 'MISSING_TEST' || !hasAssertion)) {
+          graphStatusBadge.className = 'status-badge status-missing-test';
+          graphStatusBadge.textContent = '⚠️ MISSING TEST';
+        } else if (funcStatus === 'CANDIDATE') {
+          graphStatusBadge.className = 'status-badge status-candidate';
+          graphStatusBadge.textContent = '🔍 CANDIDATE';
+        } else {
+          graphStatusBadge.className = 'status-badge status-unlinked';
+          graphStatusBadge.textContent = '○ UNLINKED';
+        }
+      }
+
       // 1. Populate Requirement
+      const reqCard = document.getElementById('req-card');
+      const connLine1 = document.getElementById('conn-line-1');
+      const connArrow1 = document.getElementById('conn-arrow-1');
       const reqTitle = document.getElementById('req-title');
       if (storyId && storyId !== 'UNLINKED') {
         let storyDesc = '';
@@ -419,8 +696,14 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
           }
         }
         reqTitle.textContent = storyId + storyDesc;
+        if (reqCard) reqCard.className = 'node-card card-requirement';
+        if (connLine1) connLine1.className = 'connector-line';
+        if (connArrow1) connArrow1.className = 'connector-arrow';
       } else {
         reqTitle.textContent = 'Unlinked (No Story Match)';
+        if (reqCard) reqCard.className = 'node-card card-requirement unlinked';
+        if (connLine1) connLine1.className = 'connector-line untested';
+        if (connArrow1) connArrow1.className = 'connector-arrow untested';
       }
 
       // 2. Populate Implementation
@@ -435,13 +718,23 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
         implCard.className = 'node-card card-implementation';
       }
 
+      if (currentImplData && (currentImplData.file_path || currentImplData.symbol_name || currentImplData.name)) {
+        implCard.classList.add('clickable');
+        const implBase = currentImplData.file_path ? currentImplData.file_path.split(/[\\\\/]/).pop() : 'source file';
+        implCard.title = 'Click to open ' + implBase + (currentImplData.line_start ? ':' + currentImplData.line_start : '');
+      } else {
+        implCard.classList.remove('clickable');
+        implCard.title = '';
+      }
+
       // 3. Populate Verification
       const verifTitle = document.getElementById('verif-title');
       const verifCard = document.getElementById('verif-card');
+      const verifHint = document.getElementById('verif-hint');
       const connLine2 = document.getElementById('conn-line-2');
       const connArrow2 = document.getElementById('conn-arrow-2');
 
-      if (hasAssertion) {
+      if (hasAssertion && storyId !== 'UNLINKED') {
         let testLabel = 'Unit Test Assertion Verified';
         if (testNode && testNode.data && testNode.data.label) {
           const parts = String(testNode.data.label).split(/\\r?\\n/);
@@ -451,21 +744,45 @@ export class TraceGraphPanelProvider implements vscode.WebviewViewProvider {
         verifCard.className = 'node-card card-verification passed';
         connLine2.className = 'connector-line';
         connArrow2.className = 'connector-arrow';
+        if (verifHint) {
+          verifHint.textContent = '↗ Click to open test fixture';
+        }
       } else {
-        let testLabel = 'Unit Test (Missing Assertion)';
-        if (testNode && testNode.data && testNode.data.label) {
+        let testLabel = 'No Linked Test';
+        if (testNode && testNode.data && testNode.data.label && !testNode.data.label.includes('Missing')) {
           const parts = String(testNode.data.label).split(/\\r?\\n/);
           testLabel = parts[0].trim();
+        } else if (storyId !== 'UNLINKED') {
+          testLabel = 'Unit Test (Missing Assertion)';
         }
         verifTitle.textContent = testLabel;
         verifCard.className = 'node-card card-verification missing';
         connLine2.className = 'connector-line untested';
         connArrow2.className = 'connector-arrow untested';
+        if (verifHint) {
+          verifHint.textContent = (currentTestData && currentTestData.file_path) ? '↗ Click to open test file' : '○ Untested';
+        }
+      }
+
+      const hasTestPath = currentTestData && currentTestData.file_path && currentTestData.file_path.trim().length > 0;
+      const hasRealTestSymbol = currentTestData && currentTestData.symbol_name && currentTestData.symbol_name !== 'unit_test' && currentTestData.symbol_name.length > 0;
+
+      if (hasTestPath || hasRealTestSymbol) {
+        verifCard.classList.add('clickable');
+        const testBase = hasTestPath ? currentTestData.file_path.split(/[\\\\/]/).pop() : 'test file';
+        if (hasRealTestSymbol) {
+          verifCard.title = 'Click to open ' + testBase + ' > ' + currentTestData.symbol_name + '()';
+        } else {
+          verifCard.title = 'Click to open ' + testBase;
+        }
+      } else {
+        verifCard.classList.remove('clickable');
+        verifCard.title = 'No test fixture found for this function';
       }
 
       // 4. Populate Link Rationale
       const rationaleText = document.getElementById('rationale-text');
-      if (funcStatus === 'VERIFIED' || funcStatus === 'MISSING_TEST') {
+      if (storyId !== 'UNLINKED' && (funcStatus === 'VERIFIED' || funcStatus === 'MISSING_TEST')) {
         const simScore = sim > 0 ? sim.toFixed(2) : '0.88';
         rationaleText.textContent = 'High semantic similarity (' + simScore + ') found between User Story ACs and function docstrings.';
       } else if (funcStatus === 'CANDIDATE') {

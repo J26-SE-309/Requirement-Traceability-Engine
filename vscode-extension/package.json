@@ -100,6 +100,11 @@
           "type": "number",
           "default": 0.65,
           "description": "Cosine similarity threshold for candidate link."
+        },
+        "rte.storiesPath": {
+          "type": "string",
+          "default": "C:/Users/DINUWA/Desktop/Reserach resources/Requirement-Traceability-Engine/.rte/stories.json",
+          "description": "Path to the .rte/ directory or stories.json containing the active sprint backlog requirements."
         }
       }
     }
